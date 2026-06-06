@@ -310,20 +310,25 @@
 
   /* =======================================================
      AMBIENT SOUNDSCAPE — synthesized, breath-linked, optional
-     A warm detuned pad (root + fifth + octave) through a morphing
-     low-pass and light reverb. Brightness/pitch follow the breath
-     "fullness" computed from the SAME single timer as the visuals,
-     so it can never drift. Everything ramps gently — no hard jumps.
+     A warm pure-sine open chord (root + fifth + octave) plus a soft
+     filtered-noise "air" wash and a slow swell, through a morphing
+     low-pass and lush reverb. Brightness follows the breath "fullness"
+     computed from the SAME single timer as the visuals, so it can never
+     drift. Everything ramps gently — no hard jumps.
      ======================================================= */
   const soundscape = { active: false, stopping: false, nodes: null, teardownTimer: 0 };
 
   const SS = {
-    filterMin: 320,   // Hz, fully exhaled (closed, warm)
-    filterMax: 1500,  // Hz, fully inhaled (open, brighter) — gentle range
-    detuneRise: 45,   // cents of subtle pitch rise at full inhale
-    padBase: 0.85,    // resting pad level
-    padSwell: 0.15,   // extra pad level at full inhale (soft volume swell)
-    smoothing: 0.2,   // setTargetAtTime time constant (s) — removes per-frame stepping
+    filterMin: 300,   // Hz, fully exhaled (closed, warm)
+    filterMax: 1400,  // Hz, fully inhaled (open, brighter) — gentle range
+    detuneRise: 36,   // cents of subtle pitch rise at full inhale
+    padBase: 0.62,    // resting pad level
+    padSwell: 0.12,   // extra pad level at full inhale (soft volume swell)
+    noiseBase: 0.018, // resting level of the soft "air" wash
+    noiseSwell: 0.022,// extra air toward full inhale
+    lfoRate: 0.05,    // Hz — a ~20s slow swell so the pad feels alive
+    lfoDepth: 0.05,   // depth of that swell
+    smoothing: 0.28,  // setTargetAtTime time constant (s) — gentle, removes stepping
     masterCeiling: 0.5, // volume slider (0..1) scales within this gentle ceiling
   };
 
@@ -331,22 +336,46 @@
     return clamp(settings.soundscapeVolume, 0, 1) * SS.masterCeiling;
   }
 
-  // A soft synthetic impulse response → light, spacey reverb ("floating among stars").
+  // A smooth synthetic impulse response → lush, spacious reverb.
+  // Slightly smoothing the noise removes the "grainy/hissy" quality and gives a
+  // softer, more cathedral-like tail. Decorrelated per channel for natural width.
   function makeReverbIR(ctx, seconds, decay) {
     const rate = ctx.sampleRate;
     const len = Math.max(1, Math.floor(seconds * rate));
     const ir = ctx.createBuffer(2, len, rate);
     for (let ch = 0; ch < 2; ch++) {
       const data = ir.getChannelData(ch);
+      let last = 0;
       for (let i = 0; i < len; i++) {
-        data[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, decay);
+        const white = Math.random() * 2 - 1;
+        last = last + 0.35 * (white - last);          // one-pole smoothing
+        data[i] = last * Math.pow(1 - i / len, decay); // exponential decay tail
       }
     }
     return ir;
   }
 
+  // Soft, looping "air" noise — a one-pole-smoothed (pink-ish) bed that, run
+  // through the morphing low-pass, becomes a gentle ambient wash, not hiss.
+  function makeNoiseBuffer(ctx, seconds) {
+    const rate = ctx.sampleRate;
+    const len = Math.max(1, Math.floor(seconds * rate));
+    const buf = ctx.createBuffer(2, len, rate);
+    for (let ch = 0; ch < 2; ch++) {
+      const data = buf.getChannelData(ch);
+      let last = 0;
+      for (let i = 0; i < len; i++) {
+        const white = Math.random() * 2 - 1;
+        last = last + 0.02 * (white - last); // heavy smoothing → low, warm noise
+        data[i] = last * 3.2;                // make up the level the filter removed
+      }
+    }
+    return buf;
+  }
+
   function buildSoundscape(ctx) {
     const now = ctx.currentTime;
+    const sources = []; // everything with start()/stop(), for clean teardown
 
     // Master = fade envelope × volume. Starts silent so fade-in never clicks.
     const master = ctx.createGain();
@@ -357,63 +386,74 @@
     const filter = ctx.createBiquadFilter();
     filter.type = 'lowpass';
     filter.frequency.setValueAtTime(SS.filterMin, now);
-    filter.Q.value = 0.6;
+    filter.Q.value = 0.4; // gentle, no resonant "peak"
 
-    // Dry + reverb split, summed at the master.
-    const dry = ctx.createGain(); dry.gain.value = 0.7;
-    const wet = ctx.createGain(); wet.gain.value = 0.5;
+    // Dry + lush reverb split, summed at the master.
+    const dry = ctx.createGain(); dry.gain.value = 0.55;
+    const wet = ctx.createGain(); wet.gain.value = 0.7;
     filter.connect(dry).connect(master);
     try {
       const convolver = ctx.createConvolver();
-      convolver.buffer = makeReverbIR(ctx, 2.6, 2.2);
+      convolver.buffer = makeReverbIR(ctx, 4.0, 2.6); // longer, smoother tail
       filter.connect(convolver); convolver.connect(wet).connect(master);
     } catch { /* no reverb if unsupported — pad still plays dry */ }
 
-    // Pad bus sums the detuned voices before the filter.
+    // Pad bus sums the voices before the filter. A very slow LFO adds a gentle,
+    // living swell on top of the breath morph (skipped under reduced-motion).
     const padBus = ctx.createGain();
     padBus.gain.setValueAtTime(SS.padBase, now);
     padBus.connect(filter);
+    if (!prefersReducedMotion()) {
+      const lfo = ctx.createOscillator();
+      lfo.type = 'sine';
+      lfo.frequency.value = SS.lfoRate;
+      const lfoDepth = ctx.createGain();
+      lfoDepth.gain.value = SS.lfoDepth;
+      lfo.connect(lfoDepth).connect(padBus.gain); // adds to the intrinsic gain
+      lfo.start(now);
+      sources.push(lfo);
+    }
 
-    // Warm chord low in the register: root (A2), detuned pair for beating warmth,
-    // a fifth, and a soft octave for body.
-    const padBase = 110; // A2
+    // Warm OPEN chord (root + fifth + octave + soft twelfth, no third → neutral
+    // and spacious), pure sines with gentle detuning for a soft chorus/beating.
+    const root = 110; // A2
     const voices = [
-      { ratio: 1,   detune: -7, gain: 0.22, type: 'sine' },
-      { ratio: 1,   detune: +7, gain: 0.22, type: 'sine' },
-      { ratio: 1.5, detune: -3, gain: 0.13, type: 'sine' },     // fifth
-      { ratio: 2,   detune: +4, gain: 0.09, type: 'triangle' }, // octave, a little color
+      { f: root,       detune: -8, gain: 0.16 },
+      { f: root,       detune: +8, gain: 0.16 },
+      { f: root,       detune:  0, gain: 0.13 },
+      { f: root * 1.5, detune: -4, gain: 0.12 }, // fifth  (E3)
+      { f: root * 2,   detune: +4, gain: 0.12 }, // octave (A3)
+      { f: root * 3,   detune:  0, gain: 0.05 }, // twelfth (E4) — soft air for small speakers
     ];
     const voiceDetune = voices.map((v) => v.detune);
     const oscs = voices.map((v) => {
       const osc = ctx.createOscillator();
-      osc.type = v.type;
-      osc.frequency.value = padBase * v.ratio;
+      osc.type = 'sine';
+      osc.frequency.value = v.f;
       osc.detune.value = v.detune;
       const g = ctx.createGain();
       g.gain.value = v.gain;
       osc.connect(g).connect(padBus);
       osc.start(now);
+      sources.push(osc);
       return osc;
     });
 
-    // Shimmer: very quiet high accents that swell near the top of the breath.
-    // Skipped under reduced-motion (it's the only "moving" texture).
-    const shimmerGain = ctx.createGain();
-    shimmerGain.gain.setValueAtTime(0.0001, now);
-    shimmerGain.connect(filter);
-    const shimmerOscs = [];
-    if (!prefersReducedMotion()) {
-      [1318.5, 1322.0].forEach((f) => { // ~E6, a detuned pair
-        const o = ctx.createOscillator();
-        o.type = 'sine';
-        o.frequency.value = f;
-        o.connect(shimmerGain);
-        o.start(now);
-        shimmerOscs.push(o);
-      });
-    }
+    // Soft "air" wash — a quiet looping noise bed through the SAME morphing
+    // filter, so it breathes with the pad. Organic, spacious, never hissy.
+    const noiseGain = ctx.createGain();
+    noiseGain.gain.setValueAtTime(SS.noiseBase, now);
+    noiseGain.connect(filter);
+    try {
+      const noise = ctx.createBufferSource();
+      noise.buffer = makeNoiseBuffer(ctx, 3);
+      noise.loop = true;
+      noise.connect(noiseGain);
+      noise.start(now);
+      sources.push(noise);
+    } catch { /* no air layer if buffer source unsupported */ }
 
-    return { master, filter, padBus, oscs, voiceDetune, shimmerGain, shimmerOscs };
+    return { master, filter, padBus, oscs, voiceDetune, noiseGain, sources };
   }
 
   // Smoothly ramp the master toward a level over `seconds` (fade in/out).
@@ -442,16 +482,15 @@
     n.oscs.forEach((osc, i) => osc.detune.setTargetAtTime(n.voiceDetune[i] + rise, now, tc));
     // Soft volume swell toward full inhale.
     n.padBus.gain.setTargetAtTime(SS.padBase + SS.padSwell * fullness, now, tc);
-    // Shimmer appears only in the upper part of the breath, and stays very quiet.
-    const shimmer = 0.014 * clamp((fullness - 0.4) / 0.6, 0, 1);
-    n.shimmerGain.gain.setTargetAtTime(Math.max(0.0001, shimmer), now, tc);
+    // The "air" wash opens a touch toward full inhale, then settles.
+    if (n.noiseGain) {
+      n.noiseGain.gain.setTargetAtTime(SS.noiseBase + SS.noiseSwell * fullness, now, tc);
+    }
   }
 
   function teardownNodes(nodes) {
     if (!nodes) return;
-    const stopAll = (arr) => arr.forEach((o) => { try { o.stop(); } catch {} try { o.disconnect(); } catch {} });
-    stopAll(nodes.oscs || []);
-    stopAll(nodes.shimmerOscs || []);
+    (nodes.sources || []).forEach((s) => { try { s.stop(); } catch {} try { s.disconnect(); } catch {} });
     try { nodes.master.disconnect(); } catch {}
   }
 

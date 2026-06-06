@@ -87,6 +87,7 @@
     animationStyle: 'circle',  // 'circle' or 'liquid'
     soundscape: false,  // ambient soundscape (optional)
     soundscapeVolume: 0.3,
+    calmCheck: true,    // optional before/after calm self-rating
   };
   const STORE_KEY = 'breathe.settings.v1';
 
@@ -106,6 +107,7 @@
         animationStyle: s.animationStyle === 'liquid' ? 'liquid' : 'circle',
         soundscape: s.soundscape === true,
         soundscapeVolume: clamp(parseFloat(s.soundscapeVolume) || DEFAULTS.soundscapeVolume, 0, 1),
+        calmCheck: s.calmCheck !== false,
       };
     } catch {
       return { ...DEFAULTS };
@@ -117,6 +119,129 @@
 
   const clamp = (n, lo, hi) => Math.max(lo, Math.min(hi, n));
   const settings = loadSettings();
+
+  /* =======================================================
+     LOCAL USER DATA — profile + progress (stays on device)
+     Nothing here is ever uploaded; it all lives in localStorage.
+     ======================================================= */
+  const PROFILE_KEY = 'breathe.profile.v1';
+  const PROGRESS_KEY = 'breathe.progress.v1';
+
+  function loadProfile() {
+    try {
+      const p = JSON.parse(localStorage.getItem(PROFILE_KEY) || '{}');
+      return {
+        name: typeof p.name === 'string' ? p.name : '',
+        age: typeof p.age === 'string' ? p.age : '',
+        goal: typeof p.goal === 'string' ? p.goal : '',
+        welcomed: p.welcomed === true,
+        onboarded: p.onboarded === true,
+      };
+    } catch { return { name: '', age: '', goal: '', welcomed: false, onboarded: false }; }
+  }
+  function saveProfile() { try { localStorage.setItem(PROFILE_KEY, JSON.stringify(profile)); } catch {} }
+
+  function loadProgress() {
+    try {
+      const p = JSON.parse(localStorage.getItem(PROGRESS_KEY) || '{}');
+      const st = p.streak || {};
+      return {
+        history: Array.isArray(p.history) ? p.history : [],
+        points: Number(p.points) || 0,
+        streak: {
+          current: Number(st.current) || 0,
+          longest: Number(st.longest) || 0,
+          lastDate: typeof st.lastDate === 'string' ? st.lastDate : null,
+        },
+      };
+    } catch { return { history: [], points: 0, streak: { current: 0, longest: 0, lastDate: null } }; }
+  }
+  function saveProgress() { try { localStorage.setItem(PROGRESS_KEY, JSON.stringify(progress)); } catch {} }
+
+  const profile = loadProfile();
+  const progress = loadProgress();
+
+  // ---- date + stats helpers (local time) ----
+  function todayStr(d) {
+    const dt = d || new Date();
+    const y = dt.getFullYear();
+    const m = String(dt.getMonth() + 1).padStart(2, '0');
+    const day = String(dt.getDate()).padStart(2, '0');
+    return `${y}-${m}-${day}`;
+  }
+  function dayDiff(aStr, bStr) {
+    const a = new Date(aStr + 'T00:00:00');
+    const b = new Date(bStr + 'T00:00:00');
+    return Math.round((b - a) / 86400000);
+  }
+  function computeSessionPoints(durationMs) {
+    const minutes = durationMs / 60000;
+    return Math.max(10, Math.round(minutes) * 5 + 5); // ~5/min + a completion bonus
+  }
+  function lifetimeMs() { return progress.history.reduce((a, h) => a + (h.durationMs || 0), 0); }
+  function minutesToday() {
+    const t = todayStr();
+    return progress.history.filter((h) => h.date === t).reduce((a, h) => a + (h.durationMs || 0) / 60000, 0);
+  }
+  function doseDaysThisWeek() {
+    const byDay = {};
+    progress.history.forEach((h) => { byDay[h.date] = (byDay[h.date] || 0) + (h.durationMs || 0) / 60000; });
+    const today = new Date();
+    let count = 0;
+    for (let i = 0; i < 7; i++) {
+      const ds = todayStr(new Date(today.getTime() - i * 86400000));
+      if ((byDay[ds] || 0) >= 5) count++;
+    }
+    return count;
+  }
+  function calmDeltaAvg() {
+    const both = progress.history.filter((h) => h.calmBefore != null && h.calmAfter != null);
+    if (!both.length) return null;
+    const avg = both.reduce((a, h) => a + (h.calmAfter - h.calmBefore), 0) / both.length;
+    return { avg, n: both.length };
+  }
+
+  // Record a COMPLETED session. Streak only ever builds up (never resets to
+  // zero); a gap just pauses growth and flags a warm "welcome back".
+  function recordSession(rec) {
+    const now = new Date();
+    const today = todayStr(now);
+    const pts = computeSessionPoints(rec.durationMs);
+    const s = progress.streak;
+    let wasAway = false;
+    if (s.lastDate !== today) {
+      if (s.lastDate && dayDiff(s.lastDate, today) >= 2) wasAway = true; // missed 1+ day(s)
+      s.current = (s.current || 0) + 1;
+      s.longest = Math.max(s.longest || 0, s.current);
+      s.lastDate = today;
+    }
+    progress.points += pts;
+    progress.history.push({
+      ts: now.getTime(),
+      date: today,
+      mode: rec.mode,
+      modeLabel: rec.modeLabel,
+      durationMs: rec.durationMs,
+      minutes: Math.round((rec.durationMs / 60000) * 10) / 10,
+      cycles: rec.cycles,
+      points: pts,
+      calmBefore: rec.calmBefore != null ? rec.calmBefore : null,
+      calmAfter: rec.calmAfter != null ? rec.calmAfter : null,
+    });
+    saveProgress();
+    return { pts, wasAway };
+  }
+
+  function modeLabelFor(modeId) {
+    if (modeId === 'box') return 'Box (Focus)';
+    if (modeId === 'coherent') return 'Coherent (Relax)';
+    if (modeId === '4-7-8') return '4-7-8 (Sleep)';
+    if (modeId && modeId.startsWith('custom-')) {
+      const m = createCustomMode(modeId.slice('custom-'.length));
+      return m ? m.name : 'Custom';
+    }
+    return modeId || '';
+  }
 
   /* ---------- Element refs ---------- */
   const $ = (id) => document.getElementById(id);
@@ -176,6 +301,48 @@
     phaseLabelLiquid: $('phase-label-liquid'),
     countLiquid: $('count-liquid'),
     optAnimation: $('opt-animation'),
+
+    // Welcome
+    screenWelcome: $('screen-welcome'),
+    btnWelcomeStart: $('btn-welcome-start'),
+
+    // Onboarding
+    screenOnboarding: $('screen-onboarding'),
+    onboardForm: $('onboard-form'),
+    onboardTitle: $('onboard-title'),
+    onboardName: $('onboard-name'),
+    onboardAge: $('onboard-age'),
+    onboardGoal: $('onboard-goal'),
+    onboardSuggestion: $('onboard-suggestion'),
+    btnOnboardContinue: $('btn-onboard-continue'),
+    btnOnboardSkip: $('btn-onboard-skip'),
+
+    // Start greeting + data section
+    mastheadSub: $('masthead-sub'),
+    greeting: $('greeting'),
+    optCalm: $('opt-calm'),
+    btnEditProfile: $('btn-edit-profile'),
+    btnExportJson: $('btn-export-json'),
+    btnExportCsv: $('btn-export-csv'),
+    btnReplayWelcome: $('btn-replay-welcome'),
+
+    // Dashboard extras
+    endSub: $('end-sub'),
+    endStreak: $('end-streak'),
+    endPoints: $('end-points'),
+    endSessions: $('end-sessions'),
+    endLifetime: $('end-lifetime'),
+    endMilestone: $('end-milestone'),
+    endCalm: $('end-calm'),
+    doseFill: document.querySelector('.dose__fill'),
+    doseNum: $('dose-num'),
+    doseCaption: $('dose-caption'),
+
+    // Calm overlay
+    calmOverlay: $('calm-overlay'),
+    calmTitle: $('calm-q'),
+    calmSub: $('calm-sub'),
+    btnCalmSkip: $('btn-calm-skip'),
   };
 
   const prefersReducedMotion = () =>
@@ -228,8 +395,11 @@
     setSwitch(el.optHaptic, settings.haptic);
     setSwitch(el.optSoundscape, settings.soundscape);
     setSwitch(el.optAnimation, settings.animationStyle === 'liquid');
+    setSwitch(el.optCalm, settings.calmCheck);
     setSwitch(el.optTheme, settings.theme === 'light');
     el.optSoundscapeVolume.value = String(Math.round(settings.soundscapeVolume * 100));
+
+    updateGreeting();
   }
 
   function setRadio(node, on) { node.setAttribute('aria-checked', on ? 'true' : 'false'); }
@@ -285,10 +455,7 @@
      AUDIO — must be created on a user gesture (iOS Safari)
      ======================================================= */
   let audioCtx = null;
-  function initAudio() {
-    // Create/resume the context if EITHER feature wants sound. Must run inside a
-    // user gesture (the Start tap) — iOS Safari blocks audio otherwise.
-    if (!settings.sound && !settings.soundscape) return;
+  function ensureAudioCtx() {
     try {
       if (!audioCtx) {
         const AC = window.AudioContext || window.webkitAudioContext;
@@ -296,6 +463,36 @@
       }
       if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
     } catch { audioCtx = null; }
+    return audioCtx;
+  }
+  function initAudio() {
+    // Create/resume the context if EITHER feature wants sound. Must run inside a
+    // user gesture (the Start tap) — iOS Safari blocks audio otherwise.
+    if (!settings.sound && !settings.soundscape) return;
+    ensureAudioCtx();
+  }
+
+  // Gentle intro chime for the welcome screen (soft ascending major triad).
+  function playChime() {
+    if (!settings.sound) return;
+    const ctx = ensureAudioCtx();
+    if (!ctx) return;
+    try {
+      const now = ctx.currentTime;
+      [523.25, 659.25, 783.99].forEach((f, i) => { // C5 · E5 · G5
+        const t = now + i * 0.18;
+        const osc = ctx.createOscillator();
+        const g = ctx.createGain();
+        osc.type = 'sine';
+        osc.frequency.value = f;
+        g.gain.setValueAtTime(0.0001, t);
+        g.gain.exponentialRampToValueAtTime(0.09, t + 0.05);
+        g.gain.exponentialRampToValueAtTime(0.0001, t + 1.3);
+        osc.connect(g).connect(ctx.destination);
+        osc.start(t);
+        osc.stop(t + 1.35);
+      });
+    } catch {}
   }
   // tone: a soft sine with gentle attack/release; pitch hints the direction.
   function playTone(kind) {
@@ -890,26 +1087,27 @@
 
   /* ---------- Finish ---------- */
   function finishSession() {
-    const elapsed = session.sessionElapsed;
-    const cyclesDone = (session.mode === 'box' || session.mode === '4-7-8' || session.mode.startsWith('custom-')) 
-      ? session.totalCycles 
-      : session.cycle;
+    const isCycleMode = (session.mode === 'box' || session.mode === '4-7-8' || session.mode.startsWith('custom-'));
+    const durationMs = isCycleMode ? session.totalDuration : session.sessionElapsed;
+    const cyclesDone = isCycleMode ? session.totalCycles : session.cycle;
+    const modeId = session.mode;
+    const calmBefore = pendingCalmBefore;
     endEngine();
 
-    el.endTime.textContent = formatDuration(
-      (session.mode === 'box' || session.mode === '4-7-8' || session.mode.startsWith('custom-')) 
-        ? session.totalDuration 
-        : elapsed
-    );
-    if (session.mode === 'box' || session.mode === '4-7-8' || session.mode.startsWith('custom-')) {
-      el.endCountK.textContent = 'Cycles';
-      el.endCount.textContent = String(cyclesDone);
-    } else {
-      el.endCountK.textContent = 'Breaths';
-      el.endCount.textContent = String(cyclesDone);
-    }
-    el.srAnnounce.textContent = 'Session complete';
-    showScreen('end');
+    const finalize = (calmAfter) => {
+      const res = recordSession({
+        durationMs, mode: modeId, modeLabel: modeLabelFor(modeId),
+        cycles: cyclesDone, calmBefore, calmAfter,
+      });
+      renderDashboard({ durationMs, cyclesDone, isCycleMode, calmBefore, calmAfter, wasAway: res.wasAway });
+      pendingCalmBefore = null;
+      el.srAnnounce.textContent = 'Session complete';
+      showScreen('end');
+    };
+
+    // Optional calm-after self-check; the overlay sits over the (frozen) session.
+    if (settings.calmCheck) showCalm('after', (val) => finalize(val));
+    else finalize(null);
   }
 
   function endEngine() {
@@ -930,12 +1128,20 @@
      Screen switching + focus management
      ======================================================= */
   function showScreen(name) {
-    const map = { start: el.screenStart, session: el.screenSession, end: el.screenEnd };
+    const map = {
+      welcome: el.screenWelcome,
+      onboarding: el.screenOnboarding,
+      start: el.screenStart,
+      session: el.screenSession,
+      end: el.screenEnd,
+    };
     Object.entries(map).forEach(([k, node]) => { node.hidden = (k !== name); });
-    // Reflect any in-session audio changes back onto the start screen controls.
+    // Reflect any in-session / profile changes back onto the start screen controls.
     if (name === 'start') renderStart();
     // Move focus to a sensible target (keyboard / SR users)
     const focusTarget = {
+      welcome: el.btnWelcomeStart,
+      onboarding: el.onboardTitle,
       start: el.btnStart,
       session: el.btnStop,   // always-reachable control
       end: el.btnRestart,
@@ -957,18 +1163,303 @@
   }
 
   /* =======================================================
+     Onboarding / welcome / greeting
+     ======================================================= */
+  const GOAL_MODE = { stress: 'coherent', sleep: '4-7-8', focus: 'box', habit: 'coherent', explore: null };
+  const MODE_FRIENDLY = {
+    box: 'Focus — Box breathing',
+    coherent: 'Relax — Coherent breathing',
+    '4-7-8': 'Sleep — 4-7-8 breathing',
+  };
+
+  function selectChipByData(container, attr, value) {
+    container.querySelectorAll('.chip').forEach((c) => {
+      c.setAttribute('aria-checked', value && c.getAttribute('data-' + attr) === value ? 'true' : 'false');
+    });
+  }
+  function getCheckedChip(container, attr) {
+    const c = container.querySelector('.chip[aria-checked="true"]');
+    return c ? c.getAttribute('data-' + attr) : '';
+  }
+  function updateGoalSuggestion() {
+    const mode = GOAL_MODE[getCheckedChip(el.onboardGoal, 'goal')];
+    if (mode && MODE_FRIENDLY[mode]) {
+      el.onboardSuggestion.textContent = `Suggested for this: ${MODE_FRIENDLY[mode]}. You can change it anytime.`;
+      el.onboardSuggestion.hidden = false;
+    } else {
+      el.onboardSuggestion.hidden = true;
+      el.onboardSuggestion.textContent = '';
+    }
+  }
+  function renderOnboarding() {
+    el.onboardName.value = profile.name || '';
+    selectChipByData(el.onboardAge, 'age', profile.age);
+    selectChipByData(el.onboardGoal, 'goal', profile.goal);
+    updateGoalSuggestion();
+  }
+  function finishOnboarding(skip) {
+    if (!skip) {
+      profile.name = (el.onboardName.value || '').trim().slice(0, 40);
+      profile.age = getCheckedChip(el.onboardAge, 'age');
+      profile.goal = getCheckedChip(el.onboardGoal, 'goal');
+      const mode = GOAL_MODE[profile.goal];
+      if (mode) { settings.mode = mode; saveSettings(); } // overridable suggestion
+    }
+    profile.welcomed = true;
+    profile.onboarded = true;
+    saveProfile();
+    showScreen('start');
+  }
+
+  function armWelcomeChime() {
+    // Chime plays on the first touch of the welcome screen (a valid gesture).
+    el.screenWelcome.addEventListener('pointerdown', () => playChime(), { once: true });
+  }
+
+  function updateGreeting() {
+    const name = (profile.name || '').trim();
+    const hasHistory = progress.history.length > 0;
+    if (!name && !hasHistory) {
+      el.greeting.hidden = true;
+      if (el.mastheadSub) el.mastheadSub.hidden = false;
+      return;
+    }
+    const parts = [];
+    if (progress.streak.current > 0) parts.push(`🔥 ${progress.streak.current}-day streak`);
+    if (progress.points > 0) parts.push(`${progress.points} pts`);
+    const away = progress.streak.lastDate && dayDiff(progress.streak.lastDate, todayStr()) >= 2;
+    let lead;
+    if (away) lead = name ? `Welcome back, ${name} — let's pick up where you left off.` : `Welcome back — let's pick up where you left off.`;
+    else if (name) lead = `Hello, ${name}.`;
+    else lead = `Welcome back.`;
+    el.greeting.textContent = parts.length ? `${lead}  ·  ${parts.join('  ·  ')}` : lead;
+    el.greeting.hidden = false;
+    if (el.mastheadSub) el.mastheadSub.hidden = true; // avoid redundancy with the greeting
+  }
+
+  /* =======================================================
+     Calm check (optional, before & after)
+     ======================================================= */
+  let calmOnPick = null;
+  let pendingCalmBefore = null;
+
+  function showCalm(phase, onPick) {
+    calmOnPick = onPick;
+    el.calmTitle.textContent = phase === 'before' ? 'How calm do you feel right now?' : 'How calm do you feel now?';
+    el.calmSub.textContent = phase === 'before'
+      ? 'A quick self-check before you begin — there are no wrong answers.'
+      : 'Your own self-report — not a measurement.';
+    el.calmOverlay.hidden = false;
+    requestAnimationFrame(() => { const f = el.calmOverlay.querySelector('.calm-btn'); if (f) f.focus(); });
+  }
+  function resolveCalm(val) {
+    const cb = calmOnPick;
+    calmOnPick = null;
+    el.calmOverlay.hidden = true;
+    if (cb) cb(val);
+  }
+
+  function beginSessionFlow() {
+    initAudio(); // unlock audio inside the user gesture
+    if (settings.calmCheck) {
+      showCalm('before', (val) => { pendingCalmBefore = val; startSession(); });
+    } else {
+      pendingCalmBefore = null;
+      startSession();
+    }
+  }
+
+  /* =======================================================
+     End-of-session dashboard (honest — real data + general science)
+     ======================================================= */
+  function renderDashboard(d) {
+    const name = (profile.name || '').trim();
+    el.endSub.textContent = name ? `Nicely done, ${name}.` : 'Nicely done. Take that calm with you.';
+
+    el.endTime.textContent = formatDuration(d.durationMs);
+    el.endCountK.textContent = d.isCycleMode ? 'Cycles' : 'Breaths';
+    el.endCount.textContent = String(d.cyclesDone);
+    el.endStreak.textContent = String(progress.streak.current);
+    el.endPoints.textContent = String(progress.points);
+    el.endSessions.textContent = String(progress.history.length);
+    el.endLifetime.textContent = formatDuration(lifetimeMs());
+
+    // Effective-dose ring: real minutes today vs the 5–10 min research range.
+    // Floor the shown figure so we never over-claim reaching the range.
+    const todayMin = minutesToday();
+    const shownMin = Math.floor(todayMin);
+    const C = 2 * Math.PI * 52;
+    const prog = clamp(todayMin / 10, 0, 1);
+    el.doseFill.style.strokeDashoffset = (C * (1 - prog)).toFixed(2);
+    el.doseNum.textContent = String(shownMin);
+    el.doseCaption.textContent = shownMin >= 5
+      ? `You've reached the 5–10 min daily range that studies link to lower stress.`
+      : `${5 - shownMin} more min today reaches the 5–10 min range studies link to lower stress.`;
+
+    // Consistency milestone — framed as general info, not a personal measurement.
+    const days = doseDaysThisWeek();
+    let milestone = days > 0
+      ? `You've hit the ~5–10 min daily dose on ${days} day${days === 1 ? '' : 's'} in the last week.`
+      : `Small and consistent wins — aim for ~5–10 min a day.`;
+    if (d.wasAway) milestone = `Welcome back — picking up right where you left off.  ` + milestone;
+    el.endMilestone.textContent = milestone;
+
+    // Calm self-report — always labeled as the user's own rating, never a biomarker.
+    const delta = calmDeltaAvg();
+    if (d.calmBefore != null && d.calmAfter != null) {
+      const diff = d.calmAfter - d.calmBefore;
+      let line = diff > 0
+        ? `You felt ${diff} point${diff === 1 ? '' : 's'} calmer after this session (${d.calmBefore} → ${d.calmAfter}, your own rating).`
+        : diff === 0
+        ? `You rated your calm the same before and after (${d.calmBefore} → ${d.calmAfter}).`
+        : `A little less calm this time (${d.calmBefore} → ${d.calmAfter}) — some days are heavier, and that's okay.`;
+      if (delta && delta.n >= 3) {
+        const a = Math.round(delta.avg * 10) / 10;
+        line += ` On average you report feeling ${a >= 0 ? '+' : ''}${a} points calmer after a session.`;
+      }
+      el.endCalm.textContent = line;
+      el.endCalm.hidden = false;
+    } else if (delta && delta.n >= 1) {
+      const a = Math.round(delta.avg * 10) / 10;
+      el.endCalm.textContent = `On average you report feeling ${a >= 0 ? '+' : ''}${a} points calmer after a session (your own self-report).`;
+      el.endCalm.hidden = false;
+    } else {
+      el.endCalm.hidden = true;
+      el.endCalm.textContent = '';
+    }
+  }
+
+  /* =======================================================
+     Data export (JSON / CSV) — local file, with a readme header
+     ======================================================= */
+  function buildExportObject() {
+    return {
+      _readme: {
+        app: 'Breathe',
+        exportedAt: new Date().toISOString(),
+        privacy: 'This data is stored only on your device. The file was created on-device and is never uploaded.',
+        fields: {
+          'profile.name': 'Your name (for personalization)',
+          'profile.age': 'Your selected age range',
+          'profile.goal': 'Your selected goal',
+          points: 'Total encouragement points',
+          'streak.current': 'Forgiving day-streak — only grows; a missed day pauses it and never resets to zero',
+          'streak.longest': 'Highest streak reached',
+          'streak.lastDate': 'Last practice day (local YYYY-MM-DD)',
+          'sessions[].date': 'Practice day (local YYYY-MM-DD)',
+          'sessions[].ts': 'Timestamp (epoch milliseconds)',
+          'sessions[].mode': 'Internal mode id',
+          'sessions[].modeLabel': 'Human-readable mode',
+          'sessions[].durationMs': 'Session length in milliseconds',
+          'sessions[].minutes': 'Session length in minutes',
+          'sessions[].cycles': 'Completed cycles (breaths for coherent)',
+          'sessions[].points': 'Points earned that session',
+          'sessions[].calmBefore': 'Your 1–5 calm self-rating before (or null)',
+          'sessions[].calmAfter': 'Your 1–5 calm self-rating after (or null)',
+        },
+      },
+      profile: { name: profile.name, age: profile.age, goal: profile.goal },
+      points: progress.points,
+      streak: progress.streak,
+      sessions: progress.history,
+    };
+  }
+  function csvCell(v) {
+    const s = String(v == null ? '' : v);
+    return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
+  }
+  function buildCSV() {
+    const lines = [];
+    lines.push('# Breathe practice history — stored locally on your device, never uploaded.');
+    lines.push('# Columns: date (local), time_iso, mode, duration_min, cycles, points, calm_before (1-5 self-report), calm_after (1-5 self-report)');
+    lines.push('date,time_iso,mode,duration_min,cycles,points,calm_before,calm_after');
+    progress.history.forEach((h) => {
+      lines.push([
+        h.date,
+        new Date(h.ts).toISOString(),
+        csvCell(h.modeLabel || h.mode),
+        (h.durationMs / 60000).toFixed(1),
+        h.cycles,
+        h.points,
+        h.calmBefore == null ? '' : h.calmBefore,
+        h.calmAfter == null ? '' : h.calmAfter,
+      ].join(','));
+    });
+    lines.push('');
+    lines.push(`# Totals: sessions=${progress.history.length}, points=${progress.points}, current_streak=${progress.streak.current}, lifetime_min=${(lifetimeMs() / 60000).toFixed(1)}`);
+    return lines.join('\n');
+  }
+  function downloadFile(filename, text, type) {
+    try {
+      const blob = new Blob([text], { type });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = filename; a.rel = 'noopener';
+      document.body.appendChild(a); a.click(); document.body.removeChild(a);
+      setTimeout(() => URL.revokeObjectURL(url), 2000);
+    } catch {}
+  }
+  async function exportFile(filename, text, type) {
+    // Prefer the share sheet where supported (lets iOS save to Files); else download.
+    try {
+      if (navigator.canShare) {
+        const file = new File([text], filename, { type });
+        if (navigator.canShare({ files: [file] })) {
+          try { await navigator.share({ files: [file], title: 'Breathe data' }); }
+          catch { /* user cancelled — leave it */ }
+          return;
+        }
+      }
+    } catch {}
+    downloadFile(filename, text, type);
+  }
+
+  /* =======================================================
      Wiring
      ======================================================= */
   el.startForm.addEventListener('submit', (e) => {
     e.preventDefault();
-    initAudio();      // unlock audio inside the user gesture
-    startSession();
+    beginSessionFlow();
   });
 
   el.btnPause.addEventListener('click', togglePause);
   el.btnStop.addEventListener('click', stopSession);
-  el.btnRestart.addEventListener('click', () => { initAudio(); startSession(); });
+  el.btnRestart.addEventListener('click', beginSessionFlow);
   el.btnHome.addEventListener('click', () => showScreen('start'));
+
+  // ----- Welcome / onboarding -----
+  el.btnWelcomeStart.addEventListener('click', () => {
+    profile.welcomed = true; saveProfile();
+    renderOnboarding();
+    showScreen('onboarding');
+  });
+  el.onboardForm.addEventListener('submit', (e) => { e.preventDefault(); finishOnboarding(false); });
+  el.btnOnboardSkip.addEventListener('click', () => finishOnboarding(true));
+  [el.onboardAge, el.onboardGoal].forEach((container) => {
+    container.querySelectorAll('.chip').forEach((chip) => {
+      chip.addEventListener('click', () => {
+        container.querySelectorAll('.chip').forEach((c) => c.setAttribute('aria-checked', 'false'));
+        chip.setAttribute('aria-checked', 'true');
+        if (container === el.onboardGoal) updateGoalSuggestion();
+      });
+    });
+  });
+
+  // ----- Profile & data -----
+  el.optCalm.addEventListener('click', () => { settings.calmCheck = !settings.calmCheck; saveSettings(); renderStart(); });
+  el.btnEditProfile.addEventListener('click', () => { renderOnboarding(); showScreen('onboarding'); });
+  el.btnReplayWelcome.addEventListener('click', () => { armWelcomeChime(); showScreen('welcome'); });
+  el.btnExportJson.addEventListener('click', () => exportFile(`breathe-data-${todayStr()}.json`, JSON.stringify(buildExportObject(), null, 2), 'application/json'));
+  el.btnExportCsv.addEventListener('click', () => exportFile(`breathe-data-${todayStr()}.csv`, buildCSV(), 'text/csv'));
+
+  // ----- Calm check overlay -----
+  el.calmOverlay.querySelectorAll('.calm-btn').forEach((btn) => {
+    btn.addEventListener('click', () => resolveCalm(parseInt(btn.getAttribute('data-calm'), 10)));
+  });
+  el.btnCalmSkip.addEventListener('click', () => resolveCalm(null));
+  el.calmOverlay.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') { e.preventDefault(); resolveCalm(null); }
+  });
 
   // ----- In-session audio controls -----
   el.btnMute.addEventListener('click', () => setMuted(!muted));
@@ -1026,8 +1517,11 @@
 
   /* ---------- Boot ---------- */
   applyTheme();
+  el.onboardTitle.tabIndex = -1; // focusable target for screen switches
   renderStart();
-  showScreen('start');
+  if (!profile.welcomed) { armWelcomeChime(); showScreen('welcome'); }
+  else if (!profile.onboarded) { renderOnboarding(); showScreen('onboarding'); }
+  else { showScreen('start'); }
 
   // Register service worker (offline) + reliable, calm updates.
   if ('serviceWorker' in navigator) {

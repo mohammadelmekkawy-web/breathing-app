@@ -478,6 +478,105 @@ body {
 .segmented__btn:focus-visible, .stepper__btn:focus-visible,
 .options__summary:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
 
+/* ===================== WELCOME ===================== */
+.screen--welcome { justify-content: center; align-items: center; text-align: center; gap: var(--s1); }
+.welcome { display: flex; flex-direction: column; align-items: center; max-width: 26rem; }
+.welcome__orb {
+  position: relative; width: min(40vw, 10rem); aspect-ratio: 1 / 1; margin: 0 auto var(--s3);
+}
+.welcome__orb span {
+  position: absolute; inset: 0; border-radius: 50%;
+  background: radial-gradient(circle at 50% 40%, var(--accent), var(--accent-2) 75%);
+  opacity: 0.5; animation: orbPulse 6s ease-in-out infinite;
+}
+.welcome__orb span:nth-child(2) { animation-delay: -2s; opacity: 0.3; }
+.welcome__orb span:nth-child(3) { animation-delay: -4s; opacity: 0.2; }
+@keyframes orbPulse { 0%, 100% { transform: scale(0.65); } 50% { transform: scale(1); } }
+
+.welcome__title { font-size: clamp(2.4rem, 10vw, 3.2rem); margin: 0 0 var(--s1); font-weight: 600; }
+.welcome__beat { color: var(--text); font-size: 1.1rem; margin: var(--s1) 0; line-height: 1.5; max-width: 24rem; }
+.welcome__note { color: var(--text-dim); font-size: 0.9rem; margin: var(--s2) 0 var(--s3); }
+.screen--welcome .btn--primary { min-width: 12rem; }
+
+/* Staggered fade-in for the welcome beats */
+.beat { opacity: 0; animation: beatIn 0.7s ease forwards; animation-delay: calc(var(--beat, 1) * 0.45s); }
+@keyframes beatIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+
+/* ===================== ONBOARDING ===================== */
+.screen--onboarding { justify-content: center; gap: var(--s3); padding-block: var(--s4); }
+.text-input {
+  width: 100%; min-height: var(--tap); padding: 0 var(--s2);
+  border-radius: var(--radius); border: 1px solid var(--line);
+  background: var(--surface-2); color: var(--text); font-size: 1.05rem; font-family: inherit;
+}
+.text-input::placeholder { color: var(--text-dim); }
+
+.chips { display: flex; flex-wrap: wrap; gap: var(--s1); }
+.chips--col { flex-direction: column; }
+.chip {
+  min-height: var(--tap); padding: 0 var(--s3);
+  border-radius: var(--radius); border: 1px solid var(--line);
+  background: var(--surface); color: var(--text);
+  font-size: 1rem; font-weight: 500; cursor: pointer; text-align: center;
+  transition: background .15s ease, color .15s ease, border-color .15s ease;
+}
+.chips--col .chip { width: 100%; }
+.chip[aria-checked="true"] { background: var(--accent); color: var(--primary-ink); border-color: var(--accent); font-weight: 600; }
+
+.data-note { margin: 0 0 var(--s1); color: var(--text-dim); font-size: 0.9rem; line-height: 1.45; }
+
+/* ===================== START GREETING + DATA SECTION ===================== */
+.greeting { margin: var(--s2) 0 0; color: var(--text-dim); font-size: 1rem; line-height: 1.5; }
+.greeting strong { color: var(--text); }
+.options__body--stack { gap: var(--s1); padding-top: var(--s1); }
+.btn--row { width: 100%; margin-top: var(--s1); }
+
+/* ===================== DASHBOARD (end screen) ===================== */
+.dose { position: relative; width: 8rem; height: 8rem; margin: var(--s2) auto; }
+.dose__ring { width: 100%; height: 100%; transform: rotate(-90deg); }
+.dose__track, .dose__fill { fill: none; stroke-width: 8; stroke-linecap: round; }
+.dose__track { stroke: var(--surface-2); }
+.dose__fill {
+  stroke: var(--accent); stroke-dasharray: 326.7; stroke-dashoffset: 326.7;
+  transition: stroke-dashoffset 0.8s ease;
+}
+.dose__center { position: absolute; inset: 0; display: grid; place-content: center; text-align: center; }
+.dose__num { font-size: 1.9rem; font-weight: 700; font-variant-numeric: tabular-nums; }
+.dose__unit { font-size: 0.78rem; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.06em; }
+.dose__caption { color: var(--text-dim); font-size: 0.95rem; margin: 0 0 var(--s3); line-height: 1.45; }
+
+.stats--grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--s3) var(--s1); margin: var(--s2) 0 var(--s3); }
+.stats--grid .stat { text-align: center; }
+.stats--grid .stat__v { font-size: 1.3rem; }
+
+.end__milestone { color: var(--text-dim); font-size: 0.95rem; margin: 0 0 var(--s2); line-height: 1.45; }
+.end__calm { color: var(--text); font-size: 1rem; margin: 0 0 var(--s3); font-weight: 500; }
+
+/* ===================== CALM-CHECK OVERLAY ===================== */
+.overlay {
+  position: fixed; inset: 0; z-index: 50;
+  display: grid; place-items: center; padding: var(--s3);
+  background: rgba(0, 0, 0, 0.55);
+  padding-bottom: calc(env(safe-area-inset-bottom) + var(--s3));
+}
+.overlay__card {
+  background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius);
+  padding: var(--s4) var(--s3); width: 100%; max-width: 22rem; text-align: center;
+  box-shadow: 0 20px 50px var(--shadow);
+}
+.overlay__title { font-size: 1.4rem; margin: 0 0 var(--s1); }
+.overlay__sub { color: var(--text-dim); font-size: 0.92rem; margin: 0 0 var(--s2); }
+.calm-scale { display: flex; gap: var(--s1); justify-content: center; margin: var(--s3) 0 var(--s1); }
+.calm-btn {
+  flex: 1; min-height: 3.25rem; max-width: 3.5rem;
+  border-radius: 0.75rem; border: 1px solid var(--line);
+  background: var(--surface-2); color: var(--text);
+  font-size: 1.2rem; font-weight: 600; cursor: pointer;
+  transition: background .15s ease, color .15s ease;
+}
+.calm-btn:hover { background: var(--accent); color: var(--primary-ink); border-color: var(--accent); }
+.calm-scale__labels { display: flex; justify-content: space-between; color: var(--text-dim); font-size: 0.85rem; margin-bottom: var(--s3); }
+
 /* ===================== REDUCED MOTION ===================== */
 /* Calm, non-scaling alternative: the circle holds its size and
    gently changes opacity instead of expanding/contracting.
@@ -488,6 +587,10 @@ body {
     transition: opacity .6s ease;
   }
   .btn:active { transform: none; }
+  /* Welcome: show beats immediately, hold the orb still */
+  .beat { opacity: 1 !important; animation: none !important; transform: none !important; }
+  .welcome__orb span { animation: none !important; transform: scale(0.85); }
+  .dose__fill { transition: none !important; }
 }
 
 /* On wider/landscape screens keep it centered and not huge */

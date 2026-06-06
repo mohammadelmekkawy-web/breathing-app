@@ -29,11 +29,71 @@
 
   <main id="main" class="app">
 
+    <!-- ===================== WELCOME (first launch / replayable) ===================== -->
+    <section id="screen-welcome" class="screen screen--welcome" aria-labelledby="welcome-title" hidden>
+      <div class="welcome">
+        <div class="welcome__orb" aria-hidden="true"><span></span><span></span><span></span></div>
+        <h1 id="welcome-title" class="welcome__title beat" style="--beat:1">Breathe</h1>
+        <p class="welcome__beat beat" style="--beat:2">A guided practice to calm your nervous system.</p>
+        <p class="welcome__beat beat" style="--beat:3">A few quiet minutes a day can ease stress and support focus and sleep.</p>
+        <p class="welcome__beat beat" style="--beat:4">Most people feel calmer after one session. Consistency over about two weeks builds lasting benefit.</p>
+        <p class="welcome__note beat" style="--beat:5">No account. Your data stays on your device.</p>
+        <button type="button" class="btn btn--primary beat" style="--beat:6" id="btn-welcome-start">Get started</button>
+      </div>
+    </section>
+
+    <!-- ===================== ONBOARDING (profile) ===================== -->
+    <section id="screen-onboarding" class="screen screen--onboarding" aria-labelledby="onboard-title" hidden>
+      <form id="onboard-form" class="settings" novalidate>
+        <header class="masthead">
+          <h1 id="onboard-title" class="masthead__title">A little about you</h1>
+          <p class="masthead__sub">Optional — it just personalizes your practice.</p>
+        </header>
+
+        <div class="field">
+          <label class="field__label" for="onboard-name">Name</label>
+          <input type="text" class="text-input" id="onboard-name" autocomplete="given-name"
+                 placeholder="What should we call you?" maxlength="40" />
+        </div>
+
+        <div class="field">
+          <span class="field__label" id="onboard-age-label">Age</span>
+          <div class="chips" role="radiogroup" aria-labelledby="onboard-age-label" id="onboard-age">
+            <button type="button" class="chip" role="radio" aria-checked="false" data-age="Under 18">Under 18</button>
+            <button type="button" class="chip" role="radio" aria-checked="false" data-age="18–29">18–29</button>
+            <button type="button" class="chip" role="radio" aria-checked="false" data-age="30–44">30–44</button>
+            <button type="button" class="chip" role="radio" aria-checked="false" data-age="45–59">45–59</button>
+            <button type="button" class="chip" role="radio" aria-checked="false" data-age="60+">60+</button>
+          </div>
+        </div>
+
+        <div class="field">
+          <span class="field__label" id="onboard-goal-label">Your goal</span>
+          <div class="chips chips--col" role="radiogroup" aria-labelledby="onboard-goal-label" id="onboard-goal">
+            <button type="button" class="chip" role="radio" aria-checked="false" data-goal="stress">Reduce stress / anxiety</button>
+            <button type="button" class="chip" role="radio" aria-checked="false" data-goal="sleep">Sleep better</button>
+            <button type="button" class="chip" role="radio" aria-checked="false" data-goal="focus">Focus &amp; perform</button>
+            <button type="button" class="chip" role="radio" aria-checked="false" data-goal="habit">Build a calm daily habit</button>
+            <button type="button" class="chip" role="radio" aria-checked="false" data-goal="explore">Just exploring</button>
+          </div>
+          <p class="field__note" id="onboard-suggestion" hidden></p>
+        </div>
+
+        <p class="data-note">🔒 Your data stays on this device and is never uploaded.</p>
+
+        <div class="controls controls--stack">
+          <button type="submit" class="btn btn--primary" id="btn-onboard-continue">Continue</button>
+          <button type="button" class="btn btn--ghost" id="btn-onboard-skip">Skip for now</button>
+        </div>
+      </form>
+    </section>
+
     <!-- ===================== START SCREEN ===================== -->
     <section id="screen-start" class="screen screen--start" aria-labelledby="start-title">
       <header class="masthead">
         <h1 id="start-title" class="masthead__title">Breathe</h1>
-        <p class="masthead__sub">A quiet moment for your breath.</p>
+        <p class="masthead__sub" id="masthead-sub">A quiet moment for your breath.</p>
+        <p class="greeting" id="greeting" hidden></p>
       </header>
 
       <form id="start-form" class="settings" novalidate>
@@ -144,10 +204,27 @@
                       aria-checked="false" aria-labelledby="lbl-animation"><span class="switch__dot"></span></button>
             </div>
             <div class="toggle">
+              <span class="toggle__label" id="lbl-calm">Calm check (before &amp; after)</span>
+              <button type="button" class="switch" id="opt-calm" role="switch"
+                      aria-checked="true" aria-labelledby="lbl-calm"><span class="switch__dot"></span></button>
+            </div>
+            <div class="toggle">
               <span class="toggle__label" id="lbl-theme">Light theme</span>
               <button type="button" class="switch" id="opt-theme" role="switch"
                       aria-checked="false" aria-labelledby="lbl-theme"><span class="switch__dot"></span></button>
             </div>
+          </div>
+        </details>
+
+        <!-- Profile & data: personalization, export, intro replay (all local) -->
+        <details class="options">
+          <summary class="options__summary">Profile &amp; data</summary>
+          <div class="options__body options__body--stack">
+            <p class="data-note">🔒 Everything stays on this device — your practice history is never uploaded.</p>
+            <button type="button" class="btn btn--ghost btn--row" id="btn-edit-profile">Edit profile</button>
+            <button type="button" class="btn btn--ghost btn--row" id="btn-export-json">Export data (JSON)</button>
+            <button type="button" class="btn btn--ghost btn--row" id="btn-export-csv">Export data (CSV)</button>
+            <button type="button" class="btn btn--ghost btn--row" id="btn-replay-welcome">Replay intro</button>
           </div>
         </details>
 
@@ -251,27 +328,61 @@
       </div>
     </section>
 
-    <!-- ===================== END SCREEN ===================== -->
+    <!-- ===================== END SCREEN / DASHBOARD ===================== -->
     <section id="screen-end" class="screen screen--end" aria-labelledby="end-title" hidden>
       <div class="end-card">
         <h2 id="end-title" class="end__title">Session complete</h2>
-        <p class="end__sub">Nicely done. Take that calm with you.</p>
-        <dl class="stats">
-          <div class="stat">
-            <dt class="stat__k">Time</dt>
-            <dd class="stat__v" id="end-time">—</dd>
+        <p class="end__sub" id="end-sub">Nicely done. Take that calm with you.</p>
+
+        <!-- Effective-dose ring: progress toward the research-backed daily range -->
+        <div class="dose">
+          <svg class="dose__ring" viewBox="0 0 120 120" aria-hidden="true">
+            <circle class="dose__track" cx="60" cy="60" r="52" />
+            <circle class="dose__fill" cx="60" cy="60" r="52" />
+          </svg>
+          <div class="dose__center">
+            <span class="dose__num" id="dose-num">0</span>
+            <span class="dose__unit">min today</span>
           </div>
-          <div class="stat">
-            <dt class="stat__k" id="end-count-k">Cycles</dt>
-            <dd class="stat__v" id="end-count">—</dd>
-          </div>
+        </div>
+        <p class="dose__caption" id="dose-caption"></p>
+
+        <!-- Real personal stats only -->
+        <dl class="stats stats--grid">
+          <div class="stat"><dt class="stat__k">This session</dt><dd class="stat__v" id="end-time">—</dd></div>
+          <div class="stat"><dt class="stat__k" id="end-count-k">Cycles</dt><dd class="stat__v" id="end-count">—</dd></div>
+          <div class="stat"><dt class="stat__k">Day streak</dt><dd class="stat__v" id="end-streak">—</dd></div>
+          <div class="stat"><dt class="stat__k">Points</dt><dd class="stat__v" id="end-points">—</dd></div>
+          <div class="stat"><dt class="stat__k">Sessions</dt><dd class="stat__v" id="end-sessions">—</dd></div>
+          <div class="stat"><dt class="stat__k">Lifetime</dt><dd class="stat__v" id="end-lifetime">—</dd></div>
         </dl>
+
+        <p class="end__milestone" id="end-milestone"></p>
+        <p class="end__calm" id="end-calm" hidden></p>
+
         <div class="controls controls--stack">
           <button type="button" class="btn btn--primary" id="btn-restart">Breathe again</button>
           <button type="button" class="btn btn--ghost" id="btn-home">Home</button>
         </div>
       </div>
     </section>
+
+    <!-- ===================== CALM CHECK (optional, reused before & after) ===================== -->
+    <div id="calm-overlay" class="overlay" role="dialog" aria-modal="true" aria-labelledby="calm-q" hidden>
+      <div class="overlay__card">
+        <h2 class="overlay__title" id="calm-q">How calm do you feel?</h2>
+        <p class="overlay__sub" id="calm-sub">A quick self-check — there are no wrong answers.</p>
+        <div class="calm-scale" role="group" aria-labelledby="calm-q">
+          <button type="button" class="calm-btn" data-calm="1" aria-label="1, tense">1</button>
+          <button type="button" class="calm-btn" data-calm="2" aria-label="2">2</button>
+          <button type="button" class="calm-btn" data-calm="3" aria-label="3, neutral">3</button>
+          <button type="button" class="calm-btn" data-calm="4" aria-label="4">4</button>
+          <button type="button" class="calm-btn" data-calm="5" aria-label="5, calm">5</button>
+        </div>
+        <div class="calm-scale__labels" aria-hidden="true"><span>Tense</span><span>Calm</span></div>
+        <button type="button" class="btn btn--ghost" id="btn-calm-skip">Skip</button>
+      </div>
+    </div>
 
   </main>
 

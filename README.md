@@ -12,6 +12,11 @@ designed to ask for the least attention possible.
 - **Beginner guidance** — recommended default settings and first-time hint on startup.
 - **Liquid-fill animation** — optional visual style: a vessel that fills/drains with smooth liquid instead of circle scaling.
 - **Adaptive ambient soundscape** — optional, off by default. A real-time synthesized warm pad (detuned root + fifth + octave) through light reverb that *brightens on the inhale and settles on the exhale*, morphing continuously with the breath. Independent on/off toggle and volume slider; layered softly under the phase-change cue tones so the app is fully usable eyes-closed.
+- **In-session audio controls** — always-visible mute plus a one-tap panel (cue tones, soundscape, volume) that fade in/out without interrupting the session.
+- **Animated welcome + onboarding** — a first-launch intro (with a gentle chime) and a quick, skippable profile (name, age range, goal) that suggests a recommended mode. Replayable from settings.
+- **Encouragement-only gamification** — points per session and a forgiving day-streak that *only* builds up (a missed day pauses it, never resets, no guilt). Structured for a future (local) leaderboard.
+- **Honest end-of-session dashboard** — real personal stats (session minutes, totals, lifetime, streak, points), an effective-dose ring toward the research-backed ~5–10 min/day, general-info consistency milestones, and an optional 1–5 calm self-check with your own before/after delta. No invented biomarkers.
+- **Local data export** — download your full history as JSON or CSV (with a readme header). Everything stays on your device; nothing is ever uploaded.
 
 An animated guide circle (or liquid fill) shows your breathing in real time. The phase label,
 per-phase countdown, and breathing animation are all driven from **one `requestAnimationFrame` loop**,
@@ -155,10 +160,29 @@ Legend: ✅ done · 🟡 partial / caveat · ⬜ skipped
 | Service worker, full offline | ✅ | Network-first for the app shell (always-fresh updates online), cache-first for icons; versioned cache deleted on activate; offline falls back to the cached shell. See **Deploying updates**. |
 | iOS meta tags | ✅ | `apple-mobile-web-app-capable`, `apple-mobile-web-app-status-bar-style`, `apple-touch-icon` all present. |
 
+### Onboarding, gamification, dashboard & data
+| Item | Status | Notes |
+|---|---|---|
+| Animated welcome (first launch, replayable) | ✅ | Pulsing orb + staggered text beats (reduced-motion → static), gentle intro chime on first touch, "Get started" → onboarding. Re-openable via **Profile & data → Replay intro**. |
+| Onboarding profile | ✅ | Name, age range, goal as tappable chips; goal suggests a mode (overridable); skippable; persisted to `localStorage`. |
+| Points | ✅ | Awarded only on **completed** sessions (~5/min + completion bonus). |
+| Forgiving streak | ✅ | Only builds up; a missed day pauses it (never resets, no guilt); "welcome back" after a gap. Structured (points + streak) for a future local leaderboard. |
+| Honest dashboard | ✅ | Real stats only (session/lifetime/sessions/streak/points) + effective-dose ring to ~5–10 min + general-info weekly milestone. **No fabricated biomarker** — the only "calm" figure is the user's own 1–5 self-report, always labeled as such. |
+| Optional calm check | ✅ | 1–5 before/after with Skip; stores both; shows the user's own delta and running average. Toggle in Options. |
+| Data export (JSON + CSV) | ✅ | Both formats with a readme/header explaining every field; uses the share sheet where available, else downloads. |
+| Data stays local | ✅ | All profile/progress in `localStorage`; an on-screen note on onboarding and in **Profile & data** states it's never uploaded. |
+| New screens: contrast / tap targets / ARIA | ✅ | Contrast recomputed from the palette — text 11.9–15.8:1, dim 6.1–9.6:1, selected chips 4.6–8.6:1, dose ring vs track 4.2–6.1:1 (all ≥ AA). Chips 48px, calm buttons 52px, inputs 48px. Chips/calm use `role`+`aria-checked`/`aria-label`; inputs labeled; dialog has `role="dialog"`/`aria-modal`. |
+| Calm-check modal focus trap | 🟡 | Opens focused, `Esc` skips, backdrop dims — but it does not fully trap Tab to the dialog. Low-stakes (a 1–5 self-check); can harden if desired. |
+
 ### Caveats / how I verified
 - **Contrast, tap targets, ARIA, labels, lang, zoom, heading order, duplicate IDs** were
-  verified by running an automated DOM audit in a real Chromium preview and computing
-  WCAG contrast ratios from the actual palette — **0 issues** remain.
+  verified for the original build by running an automated DOM audit in a real Chromium
+  preview and computing WCAG contrast ratios from the actual palette — **0 issues**.
+- The **later additions** (soundscape, in-session controls, onboarding/gamification/
+  dashboard/export) were built after the in-editor browser preview became unavailable, so
+  they were verified by **JavaScript parse-checks (JavaScriptCore), id/wiring cross-checks,
+  recomputed contrast ratios, and CSS-measured tap targets** — not a live click-through.
+  Please do a quick pass on a device; report anything off and it'll be fixed.
 - I could **not run the Chrome “Lighthouse” panel here** (it needs Chrome DevTools or a
   Node toolchain, which isn’t available in this environment). The custom audit above
   covers the same accessibility checks Lighthouse runs (it uses axe-core under the hood).

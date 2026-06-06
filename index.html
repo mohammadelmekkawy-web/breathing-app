@@ -51,18 +51,23 @@
               <span class="segmented__title">Coherent</span>
               <span class="segmented__hint">5 in · 5 out</span>
             </button>
+            <button type="button" class="segmented__btn" id="mode-478"
+                    role="radio" aria-checked="false" data-mode="4-7-8">
+              <span class="segmented__title">4-7-8</span>
+              <span class="segmented__hint">Sleep</span>
+            </button>
           </div>
         </fieldset>
 
-        <!-- Box: cycle count -->
-        <div class="field field--box" id="field-box">
+        <!-- Box & 4-7-8: cycle count -->
+        <div class="field field--box-478" id="field-box-478">
           <label class="field__label" for="cycles-value">Cycles</label>
           <div class="stepper" role="group" aria-label="Number of cycles">
             <button type="button" class="stepper__btn" id="cycles-dec" aria-label="Fewer cycles">−</button>
-            <output class="stepper__value" id="cycles-value" aria-live="off">6</output>
+            <output class="stepper__value" id="cycles-value" aria-live="off">5</output>
             <button type="button" class="stepper__btn" id="cycles-inc" aria-label="More cycles">+</button>
           </div>
-          <p class="field__note">5–10 cycles · about <span id="box-estimate">96s</span></p>
+          <p class="field__note"><span id="box-estimate">~1m 20s</span> · 2–8 cycles</p>
         </div>
 
         <!-- Coherent: duration -->

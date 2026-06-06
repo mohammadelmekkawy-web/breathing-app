@@ -29,18 +29,64 @@
         { label: 'Exhale', dur: 5000, from: SCALE_MAX, to: SCALE_MIN },
       ],
     },
+    '4-7-8': {
+      name: '4-7-8 Breathing',
+      phases: [
+        { label: 'Inhale', dur: 4000, from: SCALE_MIN, to: SCALE_MAX },
+        { label: 'Hold',   dur: 7000, from: SCALE_MAX, to: SCALE_MAX },
+        { label: 'Exhale', dur: 8000, from: SCALE_MAX, to: SCALE_MIN },
+      ],
+    },
   };
+
+  /* ---------- Custom patterns (localStorage) ---------- */
+  const CUSTOM_PATTERNS_KEY = 'breathe.customPatterns.v1';
+  function loadCustomPatterns() {
+    try {
+      const raw = localStorage.getItem(CUSTOM_PATTERNS_KEY);
+      return raw ? JSON.parse(raw) : {};
+    } catch {
+      return {};
+    }
+  }
+  function saveCustomPatterns(patterns) {
+    try {
+      localStorage.setItem(CUSTOM_PATTERNS_KEY, JSON.stringify(patterns));
+    } catch {}
+  }
+  function createCustomMode(patternId) {
+    const patterns = loadCustomPatterns();
+    const p = patterns[patternId];
+    if (!p) return null;
+    const phases = [];
+    const { inhale, hold1, exhale, hold2 } = p.durations;
+    if (inhale > 0) phases.push({ label: 'Inhale', dur: inhale * 1000, from: SCALE_MIN, to: SCALE_MAX });
+    if (hold1 > 0) phases.push({ label: 'Hold',   dur: hold1 * 1000, from: SCALE_MAX, to: SCALE_MAX });
+    if (exhale > 0) phases.push({ label: 'Exhale', dur: exhale * 1000, from: SCALE_MAX, to: SCALE_MIN });
+    if (hold2 > 0) phases.push({ label: 'Hold',   dur: hold2 * 1000, from: SCALE_MIN, to: SCALE_MIN });
+    if (phases.length === 0) return null;
+    return {
+      name: p.name,
+      phases,
+      isCustom: true,
+      patternId,
+    };
+  }
+  let customPatterns = loadCustomPatterns();
 
   const RING_CIRCUMFERENCE = 2 * Math.PI * 112; // r = 112 in viewBox
 
   /* ---------- Settings (persisted) ---------- */
   const DEFAULTS = {
     mode: 'box',
-    cycles: 6,          // box: 5–10
+    cycles: 5,          // box & 4-7-8: default 5, range 2–8
     duration: 5,        // coherent: 5 or 10 (minutes)
     sound: true,
     haptic: true,
     theme: 'dark',      // 'dark' | 'light'
+    animationStyle: 'circle',  // 'circle' or 'liquid'
+    soundscape: false,  // ambient soundscape (optional)
+    soundscapeVolume: 0.3,
   };
   const STORE_KEY = 'breathe.settings.v1';
 
@@ -49,13 +95,17 @@
       const raw = localStorage.getItem(STORE_KEY);
       if (!raw) return { ...DEFAULTS };
       const s = JSON.parse(raw);
+      const validModes = ['box', 'coherent', '4-7-8', ...Object.keys(customPatterns)];
       return {
-        mode: s.mode === 'coherent' ? 'coherent' : 'box',
-        cycles: clamp(parseInt(s.cycles, 10) || DEFAULTS.cycles, 5, 10),
+        mode: validModes.includes(s.mode) ? s.mode : 'box',
+        cycles: clamp(parseInt(s.cycles, 10) || DEFAULTS.cycles, 2, 8),
         duration: s.duration === 10 ? 10 : 5,
         sound: s.sound !== false,
         haptic: s.haptic !== false,
         theme: s.theme === 'light' ? 'light' : 'dark',
+        animationStyle: s.animationStyle === 'liquid' ? 'liquid' : 'circle',
+        soundscape: s.soundscape === true,
+        soundscapeVolume: clamp(parseFloat(s.soundscapeVolume) || DEFAULTS.soundscapeVolume, 0, 1),
       };
     } catch {
       return { ...DEFAULTS };
@@ -77,7 +127,8 @@
 
     modeBox: $('mode-box'),
     modeCoherent: $('mode-coherent'),
-    fieldBox: $('field-box'),
+    mode478: $('mode-478'),
+    fieldBox478: $('field-box-478'),
     fieldCoherent: $('field-coherent'),
     cyclesValue: $('cycles-value'),
     cyclesDec: $('cycles-dec'),
@@ -124,16 +175,20 @@
   function renderStart() {
     // Mode segmented
     const isBox = settings.mode === 'box';
+    const isCoherent = settings.mode === 'coherent';
+    const is478 = settings.mode === '4-7-8';
     setRadio(el.modeBox, isBox);
-    setRadio(el.modeCoherent, !isBox);
-    el.fieldBox.hidden = !isBox;
-    el.fieldCoherent.hidden = isBox;
+    setRadio(el.modeCoherent, isCoherent);
+    setRadio(el.mode478, is478);
+    el.fieldBox478.hidden = !(isBox || is478);
+    el.fieldCoherent.hidden = !isCoherent;
 
     // Cycles
     el.cyclesValue.textContent = String(settings.cycles);
-    el.cyclesDec.disabled = settings.cycles <= 5;
-    el.cyclesInc.disabled = settings.cycles >= 10;
-    const secs = settings.cycles * 16; // 4 phases × 4s
+    el.cyclesDec.disabled = settings.cycles <= 2;
+    el.cyclesInc.disabled = settings.cycles >= 8;
+    const cycleLen = isBox ? 16 : 19; // box: 4s * 4 phases = 16s; 4-7-8: 4+7+8 = 19s
+    const secs = settings.cycles * cycleLen;
     el.boxEstimate.textContent = formatDuration(secs * 1000);
 
     // Duration
@@ -152,10 +207,11 @@
   // Mode buttons
   el.modeBox.addEventListener('click', () => { settings.mode = 'box'; saveSettings(); renderStart(); });
   el.modeCoherent.addEventListener('click', () => { settings.mode = 'coherent'; saveSettings(); renderStart(); });
+  el.mode478.addEventListener('click', () => { settings.mode = '4-7-8'; saveSettings(); renderStart(); });
 
   // Cycles stepper
-  el.cyclesDec.addEventListener('click', () => { settings.cycles = clamp(settings.cycles - 1, 5, 10); saveSettings(); renderStart(); });
-  el.cyclesInc.addEventListener('click', () => { settings.cycles = clamp(settings.cycles + 1, 5, 10); saveSettings(); renderStart(); });
+  el.cyclesDec.addEventListener('click', () => { settings.cycles = clamp(settings.cycles - 1, 2, 8); saveSettings(); renderStart(); });
+  el.cyclesInc.addEventListener('click', () => { settings.cycles = clamp(settings.cycles + 1, 2, 8); saveSettings(); renderStart(); });
 
   // Duration
   el.dur5.addEventListener('click', () => { settings.duration = 5; saveSettings(); renderStart(); });
@@ -248,7 +304,16 @@
   const easeInOutSine = (t) => -(Math.cos(Math.PI * t) - 1) / 2;
 
   function startSession() {
-    const mode = MODES[settings.mode];
+    let mode;
+    if (settings.mode.startsWith('custom-')) {
+      const patternId = settings.mode.substring('custom-'.length);
+      mode = createCustomMode(patternId);
+      if (!mode) { alert('Pattern not found'); return; }
+    } else {
+      mode = MODES[settings.mode];
+    }
+    if (!mode) { settings.mode = 'box'; mode = MODES['box']; }
+
     session.active = true;
     session.paused = false;
     session.mode = settings.mode;
@@ -260,10 +325,12 @@
     session.cycleLen = mode.phases.reduce((a, p) => a + p.dur, 0);
     session.lastRingStep = -1;
 
-    if (settings.mode === 'box') {
+    // Determine total cycles and duration
+    if (settings.mode === 'box' || settings.mode === '4-7-8' || settings.mode.startsWith('custom-')) {
       session.totalCycles = settings.cycles;
       session.totalDuration = settings.cycles * session.cycleLen;
     } else {
+      // coherent
       session.totalDuration = settings.duration * 60 * 1000;
       session.totalCycles = Math.round(session.totalDuration / session.cycleLen);
     }
@@ -328,8 +395,8 @@
           session.cycle += 1;
           updateCycleCounter();
         }
-        // Box ends after the final cycle's last phase completes.
-        if (session.mode === 'box' && session.cycle >= session.totalCycles) {
+        // Box, 4-7-8, and custom patterns end after the final cycle's last phase completes.
+        if ((session.mode === 'box' || session.mode === '4-7-8' || session.mode.startsWith('custom-')) && session.cycle >= session.totalCycles) {
           return finishSession();
         }
         enterPhase(next, true);
@@ -377,7 +444,7 @@
 
     // ----- Progress ring -----
     let progress;
-    if (session.mode === 'box') {
+    if (session.mode === 'box' || session.mode === '4-7-8' || session.mode.startsWith('custom-')) {
       const cycleProgress = (session.cycle + clampCycleFraction()) / session.totalCycles;
       progress = clamp(cycleProgress, 0, 1);
     } else {
@@ -407,7 +474,7 @@
   }
 
   function updateCycleCounter() {
-    if (session.mode === 'box') {
+    if (session.mode === 'box' || session.mode === '4-7-8' || session.mode.startsWith('custom-')) {
       const current = Math.min(session.cycle + 1, session.totalCycles);
       el.cycleCounter.textContent = `Cycle ${current} of ${session.totalCycles}`;
       el.cycleCounter.hidden = false;
@@ -447,13 +514,17 @@
   /* ---------- Finish ---------- */
   function finishSession() {
     const elapsed = session.sessionElapsed;
-    const cyclesDone = session.mode === 'box' ? session.totalCycles : session.cycle;
+    const cyclesDone = (session.mode === 'box' || session.mode === '4-7-8' || session.mode.startsWith('custom-')) 
+      ? session.totalCycles 
+      : session.cycle;
     endEngine();
 
     el.endTime.textContent = formatDuration(
-      session.mode === 'box' ? session.totalDuration : elapsed
+      (session.mode === 'box' || session.mode === '4-7-8' || session.mode.startsWith('custom-')) 
+        ? session.totalDuration 
+        : elapsed
     );
-    if (session.mode === 'box') {
+    if (session.mode === 'box' || session.mode === '4-7-8' || session.mode.startsWith('custom-')) {
       el.endCountK.textContent = 'Cycles';
       el.endCount.textContent = String(cyclesDone);
     } else {

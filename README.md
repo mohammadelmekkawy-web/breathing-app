@@ -4,10 +4,17 @@ A tiny, installable breathing-exercise app. Plain HTML/CSS/JS — no frameworks,
 build step, no network needed after first load. Mobile-first, dark by default,
 designed to ask for the least attention possible.
 
-- **Box breathing** — 4s inhale → 4s hold → 4s exhale → 4s hold. 5–10 cycles (default 6).
-- **Coherent breathing** — 5s inhale → 5s exhale (~6 breaths/min). 5 or 10 minutes.
+- **Focus (Box breathing)** — 4s inhale → 4s hold → 4s exhale → 4s hold. 2–8 cycles.
+- **Relax (Coherent breathing)** — 5s inhale → 5s exhale (~6 breaths/min). 5 or 10 minutes.
+- **Sleep (4-7-8 breathing)** — 4s inhale → 7s hold → 8s exhale. 2–8 cycles.
+- **Custom patterns** — build your own duration combinations and save them locally.
+- **Goal-based mode selection** — cards describe the benefit ("feel in control", "calm down") instead of technique names.
+- **Beginner guidance** — recommended default settings and first-time hint on startup.
+- **Liquid-fill animation** — optional visual style: a vessel that fills/drains with smooth liquid instead of circle scaling.
 
-An animated guide circle expands on the inhale, holds, and contracts on the exhale.
+An animated guide circle (or liquid fill) shows your breathing in real time. The phase label,
+per-phase countdown, and breathing animation are all driven from **one `requestAnimationFrame` loop**,
+so they can never drift apart. A thin progress ring around fills slowly over the whole session.
 The phase label, the per-phase countdown, and the breathing animation are all driven
 from **one `requestAnimationFrame` loop reading a single elapsed-time accumulator**, so
 they can never drift apart. A thin, muted progress ring around the circle fills slowly
@@ -49,7 +56,9 @@ service workers).
 
 ---
 
-## Install on iPhone (Add to Home Screen)
+## Install on your phone
+
+### iPhone (iOS Safari)
 
 iOS only installs PWAs from **Safari**.
 
@@ -61,8 +70,18 @@ iOS only installs PWAs from **Safari**.
      HTTPS hosting also unlocks full offline install.
 2. In **Safari**, tap the **Share** button (the square with an up-arrow).
 3. Scroll down and tap **Add to Home Screen**.
-4. Tap **Add**. “Breathe” now appears on your home screen with its own icon and
+4. Tap **Add**. "Breathe" now appears on your home screen with its own icon and
    launches full-screen (no Safari chrome), and works offline.
+
+### Android (Chrome)
+
+1. Serve the app somewhere your Android device can reach it (see iPhone steps above for examples).
+2. On **Chrome** for Android:
+   - Open the app in the browser (tap the address bar and paste the URL).
+   - Tap the **menu** button (three dots, top right).
+   - Tap **Install app** (or **Add to Home screen** if that option appears).
+   - Tap **Install** to confirm.
+   - "Breathe" appears on your home screen as an app and launches full-screen, with offline support.
 
 > The screen is kept awake during a session via the **Wake Lock API** where supported;
 > on browsers without it the app simply carries on (no error).
@@ -79,7 +98,7 @@ Legend: ✅ done · 🟡 partial / caveat · ⬜ skipped
 | Visibility of system status | ✅ | Phase label, big per-phase countdown, cycle counter, and ambient progress ring all live at once. |
 | User control & freedom | ✅ | **Stop** and **Pause/Resume** always on screen during a session; never trapped. `Esc` stops, `Space` pauses. |
 | Consistency & standards | ✅ | Native-feeling segmented controls, steppers, switches; system fonts. |
-| Error prevention | ✅ | Sensible defaults; cycles clamped 5–10 (buttons disable at the ends); duration limited to 5/10; impossible to start an invalid session. |
+| Error prevention | ✅ | Sensible defaults (box 5 cycles, 4-7-8 4 cycles, coherent 5 min); cycles clamped 2–8 (buttons disable at ends); duration limited to 5/10; impossible to start invalid session. |
 | Recognition over recall | ✅ | Every setting shows its current value (stepper number, selected segments, switch states) — nothing hidden behind memory. |
 | Flexibility & efficiency | ✅ | One-tap Start with remembered settings; advanced options tucked in a disclosure. |
 | Aesthetic & minimalist design | ✅ | One primary action per screen; during a session nothing competes with the guide. |

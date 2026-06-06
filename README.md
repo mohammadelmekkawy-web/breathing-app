@@ -151,7 +151,7 @@ Legend: ✅ done · 🟡 partial / caveat · ⬜ skipped
 | Item | Status | Notes |
 |---|---|---|
 | `manifest.json` (name, short_name, theme/bg color, standalone, icons) | ✅ | Includes 192, 512, and 512 maskable icons. |
-| Service worker, full offline | ✅ | Cache-first for all app assets; navigation falls back to the cached shell offline. |
+| Service worker, full offline | ✅ | Network-first for the app shell (always-fresh updates online), cache-first for icons; versioned cache deleted on activate; offline falls back to the cached shell. See **Deploying updates**. |
 | iOS meta tags | ✅ | `apple-mobile-web-app-capable`, `apple-mobile-web-app-status-bar-style`, `apple-touch-icon` all present. |
 
 ### Caveats / how I verified
@@ -179,15 +179,46 @@ Legend: ✅ done · 🟡 partial / caveat · ⬜ skipped
 
 ---
 
+## Deploying updates (GitHub Pages)
+
+PWAs are aggressively cached, so a naïve deploy can leave phones stuck on an old
+build. The fix is baked in:
+
+- **Network-first** for HTML/CSS/JS/JSON: when online you always get the newest
+  files; the cache is only the offline fallback.
+- **Versioned cache** (`breathe-<version>`): on activate, every older `breathe-*`
+  cache is deleted.
+- **`skipWaiting()` + `clients.claim()`**: the new worker takes over immediately,
+  and the page reloads once to pick it up.
+
+To ship an update, just run:
+
+```bash
+./tools/deploy.sh "what changed"
+```
+
+It stamps a **unique version** into `sw.js` (UTC timestamp + commit hash), so the
+service-worker bytes always change → browsers detect the new worker → the old
+cache is busted. Then it commits and pushes to `main`, which GitHub Pages
+redeploys in about a minute. On your phone, **just reopen the app** — no need to
+delete and reinstall.
+
+> Deploying by hand instead? Bump `const VERSION = '…';` at the top of `sw.js` to
+> any new value before you commit, or the cache won't refresh.
+
+If a phone is *already* stuck on a pre-fix build: open the site in Safari once
+(not the installed icon), which lets the browser fetch the new `sw.js`; it will
+update and reload. After this fix lands you won't need to do that again.
+
 ## Project layout
 ```
 index.html      markup for the start / session / end screens + meta tags
 styles.css      theme tokens, layout, reduced-motion + safe-area handling
-app.js          settings, the single-timer engine, audio, haptics, wake lock, SW reg
+app.js          settings, the single-timer engine, audio, haptics, wake lock, SW reg + auto-update
 manifest.json   PWA manifest
-sw.js           service worker (offline cache)
+sw.js           service worker — network-first shell, versioned cache, offline fallback
 icons/          generated PNG icons (192, 512, 512 maskable, apple-touch-icon)
-tools/          dev helpers: icon generator + a tiny static server
+tools/          dev helpers: icon generator, a tiny static server, deploy.sh (cache-busting deploy)
 ```
 
 ## Keyboard shortcuts (during a session)

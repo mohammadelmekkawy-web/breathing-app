@@ -681,10 +681,31 @@
   renderStart();
   showScreen('start');
 
-  // Register service worker (offline)
+  // Register service worker (offline) + reliable updates.
   if ('serviceWorker' in navigator) {
+    // Was a worker already controlling this page when it loaded? If so, a later
+    // takeover means a NEW build just activated → reload once to pick it up.
+    // (On a first-ever visit there's no controller, so we don't reload.)
+    const hadController = !!navigator.serviceWorker.controller;
+    let refreshing = false;
+    navigator.serviceWorker.addEventListener('controllerchange', () => {
+      if (refreshing || !hadController) return;
+      refreshing = true;
+      window.location.reload();
+    });
+
     window.addEventListener('load', () => {
-      navigator.serviceWorker.register('sw.js').catch(() => {});
+      // updateViaCache:'none' → never serve sw.js itself from the HTTP cache,
+      // so a new deploy is always detected.
+      navigator.serviceWorker.register('sw.js', { updateViaCache: 'none' })
+        .then((reg) => {
+          reg.update().catch(() => {});                 // check on every load
+          // And check again whenever the app regains focus.
+          document.addEventListener('visibilitychange', () => {
+            if (document.visibilityState === 'visible') reg.update().catch(() => {});
+          });
+        })
+        .catch(() => {});
     });
   }
 })();

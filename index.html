@@ -37,25 +37,44 @@
       </header>
 
       <form id="start-form" class="settings" novalidate>
-        <!-- Mode (primary choice — Hick's Law: only two options) -->
+        <!-- Mode cards: goal-based selection -->
         <fieldset class="field">
-          <legend class="field__label">Mode</legend>
-          <div class="segmented" role="radiogroup" aria-label="Breathing mode">
-            <button type="button" class="segmented__btn" id="mode-box"
-                    role="radio" aria-checked="true" data-mode="box">
-              <span class="segmented__title">Box</span>
-              <span class="segmented__hint">4 · 4 · 4 · 4</span>
+          <legend class="field__label">Choose by goal</legend>
+          <div class="mode-cards" role="radiogroup" aria-label="Choose breathing mode by goal">
+            
+            <!-- BOX BREATHING -->
+            <button type="button" class="mode-card" id="mode-box-card" data-mode="box" role="radio" aria-checked="true">
+              <span class="mode-card__icon" aria-hidden="true">▦</span>
+              <span class="mode-card__title">Focus</span>
+              <ul class="mode-card__bullets">
+                <li>Feel in control</li>
+                <li>Before work or training</li>
+                <li>Structured rhythm</li>
+              </ul>
             </button>
-            <button type="button" class="segmented__btn" id="mode-coherent"
-                    role="radio" aria-checked="false" data-mode="coherent">
-              <span class="segmented__title">Coherent</span>
-              <span class="segmented__hint">5 in · 5 out</span>
+
+            <!-- COHERENT BREATHING -->
+            <button type="button" class="mode-card" id="mode-coherent-card" data-mode="coherent" role="radio" aria-checked="false">
+              <span class="mode-card__icon" aria-hidden="true">◯</span>
+              <span class="mode-card__title">Relax</span>
+              <ul class="mode-card__bullets">
+                <li>Calm down & unwind</li>
+                <li>Reduce stress</li>
+                <li>Smooth & continuous</li>
+              </ul>
             </button>
-            <button type="button" class="segmented__btn" id="mode-478"
-                    role="radio" aria-checked="false" data-mode="4-7-8">
-              <span class="segmented__title">4-7-8</span>
-              <span class="segmented__hint">Sleep</span>
+
+            <!-- 4-7-8 BREATHING -->
+            <button type="button" class="mode-card" id="mode-478-card" data-mode="4-7-8" role="radio" aria-checked="false">
+              <span class="mode-card__icon" aria-hidden="true">☾</span>
+              <span class="mode-card__title">Sleep</span>
+              <ul class="mode-card__bullets">
+                <li>Fall asleep faster</li>
+                <li>Deep relaxation</li>
+                <li>Long exhale effect</li>
+              </ul>
             </button>
+
           </div>
         </fieldset>
 

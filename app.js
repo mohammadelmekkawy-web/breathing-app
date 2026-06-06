@@ -125,9 +125,9 @@
     screenSession: $('screen-session'),
     screenEnd: $('screen-end'),
 
-    modeBox: $('mode-box'),
-    modeCoherent: $('mode-coherent'),
-    mode478: $('mode-478'),
+    modeBox: $('mode-box-card'),
+    modeCoherent: $('mode-coherent-card'),
+    mode478: $('mode-478-card'),
     fieldBox478: $('field-box-478'),
     fieldCoherent: $('field-coherent'),
     cyclesValue: $('cycles-value'),
@@ -204,10 +204,16 @@
   function setRadio(node, on) { node.setAttribute('aria-checked', on ? 'true' : 'false'); }
   function setSwitch(node, on) { node.setAttribute('aria-checked', on ? 'true' : 'false'); }
 
-  // Mode buttons
-  el.modeBox.addEventListener('click', () => { settings.mode = 'box'; saveSettings(); renderStart(); });
-  el.modeCoherent.addEventListener('click', () => { settings.mode = 'coherent'; saveSettings(); renderStart(); });
-  el.mode478.addEventListener('click', () => { settings.mode = '4-7-8'; saveSettings(); renderStart(); });
+  // Mode cards
+  const modeCards = [el.modeBox, el.modeCoherent, el.mode478];
+  modeCards.forEach(card => {
+    card.addEventListener('click', () => {
+      const mode = card.getAttribute('data-mode');
+      settings.mode = mode;
+      saveSettings();
+      renderStart();
+    });
+  });
 
   // Cycles stepper
   el.cyclesDec.addEventListener('click', () => { settings.cycles = clamp(settings.cycles - 1, 2, 8); saveSettings(); renderStart(); });

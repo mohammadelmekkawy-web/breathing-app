@@ -128,6 +128,11 @@
                       aria-checked="true" aria-labelledby="lbl-haptic"><span class="switch__dot"></span></button>
             </div>
             <div class="toggle">
+              <span class="toggle__label" id="lbl-animation">Liquid fill</span>
+              <button type="button" class="switch" id="opt-animation" role="switch"
+                      aria-checked="false" aria-labelledby="lbl-animation"><span class="switch__dot"></span></button>
+            </div>
+            <div class="toggle">
               <span class="toggle__label" id="lbl-theme">Light theme</span>
               <button type="button" class="switch" id="opt-theme" role="switch"
                       aria-checked="false" aria-labelledby="lbl-theme"><span class="switch__dot"></span></button>
@@ -151,11 +156,34 @@
           <circle class="ring__fill"  cx="120" cy="120" r="112" />
         </svg>
 
-        <!-- Breathing circle -->
+        <!-- Breathing circle (default) -->
         <div class="breath" id="breath">
           <div class="breath__inner">
             <span class="breath__phase" id="phase-label">Ready</span>
             <span class="breath__count" id="count" aria-hidden="true"></span>
+          </div>
+        </div>
+
+        <!-- Liquid fill animation (alternative) -->
+        <div class="liquid-container" id="liquid-container" hidden>
+          <svg class="liquid-fill" viewBox="0 0 200 240" aria-hidden="true" focusable="false">
+            <!-- Vessel outline -->
+            <defs>
+              <mask id="liquid-mask">
+                <rect width="200" height="240" fill="white" />
+                <path id="liquid-wave" d="" fill="black" />
+              </mask>
+            </defs>
+            <!-- Vessel background (empty) -->
+            <path class="liquid-vessel" d="M 40 20 L 50 200 Q 100 210 150 200 L 160 20 Q 100 0 40 20 Z" />
+            <!-- Liquid fill -->
+            <rect class="liquid-fill__rect" x="0" y="0" width="200" height="120" mask="url(#liquid-mask)" />
+            <!-- Vessel outline on top -->
+            <path class="liquid-vessel-outline" d="M 40 20 L 50 200 Q 100 210 150 200 L 160 20 Q 100 0 40 20 Z" fill="none" />
+          </svg>
+          <div class="liquid-text">
+            <span class="breath__phase" id="phase-label-liquid">Ready</span>
+            <span class="breath__count" id="count-liquid" aria-hidden="true"></span>
           </div>
         </div>
       </div>

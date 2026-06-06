@@ -351,6 +351,41 @@ body {
   font-variant-numeric: tabular-nums; margin-top: 0.2rem;
 }
 
+/* Liquid fill animation (alternative style) */
+.liquid-container {
+  position: relative;
+  width: 50%; height: 70%;
+  max-height: 16rem;
+  display: flex; flex-direction: column; align-items: center;
+  justify-content: flex-end; gap: var(--s2);
+}
+.liquid-fill {
+  width: 100%; height: 100%;
+  filter: drop-shadow(0 0 30px rgba(127, 182, 207, 0.4));
+}
+.liquid-vessel {
+  fill: var(--surface-2); stroke: var(--line); stroke-width: 1.5;
+}
+.liquid-vessel-outline {
+  stroke: var(--text-dim); stroke-width: 2; opacity: 0.6;
+}
+.liquid-fill__rect {
+  fill: var(--accent); opacity: 0.85;
+  transition: y 0s linear;
+  will-change: y;
+}
+.liquid-text {
+  text-align: center; color: var(--primary-ink);
+  font-size: 1.25rem;
+}
+#phase-label-liquid {
+  display: block; font-size: 1rem; font-weight: 600; letter-spacing: 0.02em;
+}
+#count-liquid {
+  display: block; font-size: 2.5rem; font-weight: 700; line-height: 1;
+  font-variant-numeric: tabular-nums; margin-top: 0.15rem;
+}
+
 .controls { display: flex; gap: var(--s2); width: 100%; max-width: 22rem; }
 .controls .btn { flex: 1; }
 .controls--stack { flex-direction: column; }

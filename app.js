@@ -161,6 +161,11 @@
     srAnnounce: $('sr-announce'),
     beginnerHint: $('beginner-hint'),
     cyclesRecommended: $('cycles-recommended'),
+    liquidContainer: $('liquid-container'),
+    liquidFillRect: document.querySelector('.liquid-fill__rect'),
+    phaseLabelLiquid: $('phase-label-liquid'),
+    countLiquid: $('count-liquid'),
+    optAnimation: $('opt-animation'),
   };
 
   const prefersReducedMotion = () =>
@@ -211,6 +216,7 @@
     // Toggles
     setSwitch(el.optSound, settings.sound);
     setSwitch(el.optHaptic, settings.haptic);
+    setSwitch(el.optAnimation, settings.animationStyle === 'liquid');
     setSwitch(el.optTheme, settings.theme === 'light');
   }
 
@@ -250,6 +256,7 @@
   // Toggles
   el.optSound.addEventListener('click', () => { settings.sound = !settings.sound; saveSettings(); renderStart(); });
   el.optHaptic.addEventListener('click', () => { settings.haptic = !settings.haptic; saveSettings(); renderStart(); });
+  el.optAnimation.addEventListener('click', () => { settings.animationStyle = settings.animationStyle === 'liquid' ? 'circle' : 'liquid'; saveSettings(); renderStart(); });
   el.optTheme.addEventListener('click', () => {
     settings.theme = settings.theme === 'light' ? 'dark' : 'light';
     saveSettings(); applyTheme(); renderStart();
@@ -382,10 +389,12 @@
     session.phaseElapsed = 0;
     const phase = session.phases[index];
     el.phaseLabel.textContent = phase.label;
+    el.phaseLabelLiquid.textContent = phase.label;
 
     // Immediate-feedback countdown starts at full seconds
     const total = Math.round(phase.dur / 1000);
     el.count.textContent = String(total);
+    el.countLiquid.textContent = String(total);
 
     // Cue (sound + haptic) on every phase change
     const kind = phase.label === 'Inhale' ? 'inhale'
@@ -456,20 +465,49 @@
     const remaining = Math.max(1, Math.ceil((phase.dur - session.phaseElapsed) / 1000));
     if (el.count.textContent !== String(remaining)) {
       el.count.textContent = String(remaining);
+      el.countLiquid.textContent = String(remaining);
     }
 
-    // ----- Circle -----
-    if (prefersReducedMotion()) {
-      // Non-scaling alternative: gentle opacity, brighter on inhale/hold-top.
-      const bright = phase.to >= SCALE_MAX ? 1 : 0.6;
-      const dim = phase.from >= SCALE_MAX ? 1 : 0.6;
-      const op = dim + (bright - dim) * easeInOutSine(t);
-      el.breath.style.opacity = op.toFixed(3);
-      // size stays fixed (CSS !important locks scale)
+    // Show/hide animations based on setting
+    const useLiquid = settings.animationStyle === 'liquid';
+    el.breath.hidden = useLiquid;
+    el.liquidContainer.hidden = !useLiquid;
+
+    if (useLiquid) {
+      // ----- Liquid Fill Animation -----
+      // Determine fill level: for inhale phases, fill goes up; for exhale, fills go down
+      let fillLevel;
+      if (phase.label === 'Inhale') {
+        fillLevel = t;  // 0 to 1 as inhale progresses
+      } else if (phase.label === 'Exhale') {
+        fillLevel = 1 - t;  // 1 to 0 as exhale progresses
+      } else {
+        // Hold phases: maintain current level
+        fillLevel = phase.from >= SCALE_MAX ? 1 : 0;
+      }
+      fillLevel = clamp(fillLevel, 0, 1);
+      
+      // Update liquid height (vessel is 240px tall, so fill from bottom)
+      const maxHeight = 200;  // vessel height
+      const fillHeight = maxHeight * (1 - fillLevel);
+      if (el.liquidFillRect) {
+        el.liquidFillRect.setAttribute('y', fillHeight);
+        el.liquidFillRect.setAttribute('height', maxHeight - fillHeight);
+      }
     } else {
-      const scale = phase.from + (phase.to - phase.from) * easeInOutSine(t);
-      el.breath.style.transform = `scale(${scale.toFixed(4)})`;
-      el.breath.style.opacity = (0.9 + 0.1 * ((scale - SCALE_MIN) / (SCALE_MAX - SCALE_MIN))).toFixed(3);
+      // ----- Circle Animation -----
+      if (prefersReducedMotion()) {
+        // Non-scaling alternative: gentle opacity, brighter on inhale/hold-top.
+        const bright = phase.to >= SCALE_MAX ? 1 : 0.6;
+        const dim = phase.from >= SCALE_MAX ? 1 : 0.6;
+        const op = dim + (bright - dim) * easeInOutSine(t);
+        el.breath.style.opacity = op.toFixed(3);
+        // size stays fixed (CSS !important locks scale)
+      } else {
+        const scale = phase.from + (phase.to - phase.from) * easeInOutSine(t);
+        el.breath.style.transform = `scale(${scale.toFixed(4)})`;
+        el.breath.style.opacity = (0.9 + 0.1 * ((scale - SCALE_MIN) / (SCALE_MAX - SCALE_MIN))).toFixed(3);
+      }
     }
 
     // ----- Progress ring -----

@@ -11,6 +11,7 @@ designed to ask for the least attention possible.
 - **Goal-based mode selection** — cards describe the benefit ("feel in control", "calm down") instead of technique names.
 - **Beginner guidance** — recommended default settings and first-time hint on startup.
 - **Liquid-fill animation** — optional visual style: a vessel that fills/drains with smooth liquid instead of circle scaling.
+- **Adaptive ambient soundscape** — optional, off by default. A real-time synthesized warm pad (detuned root + fifth + octave) through light reverb that *brightens on the inhale and settles on the exhale*, morphing continuously with the breath. Independent on/off toggle and volume slider; layered softly under the phase-change cue tones so the app is fully usable eyes-closed.
 
 An animated guide circle (or liquid fill) shows your breathing in real time. The phase label,
 per-phase countdown, and breathing animation are all driven from **one `requestAnimationFrame` loop**,

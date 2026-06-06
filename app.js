@@ -140,6 +140,8 @@
     optSound: $('opt-sound'),
     optHaptic: $('opt-haptic'),
     optTheme: $('opt-theme'),
+    optSoundscape: $('opt-soundscape'),
+    optSoundscapeVolume: $('opt-soundscape-volume'),
 
     startForm: $('start-form'),
     btnStart: $('btn-start'),
@@ -216,8 +218,10 @@
     // Toggles
     setSwitch(el.optSound, settings.sound);
     setSwitch(el.optHaptic, settings.haptic);
+    setSwitch(el.optSoundscape, settings.soundscape);
     setSwitch(el.optAnimation, settings.animationStyle === 'liquid');
     setSwitch(el.optTheme, settings.theme === 'light');
+    el.optSoundscapeVolume.value = String(Math.round(settings.soundscapeVolume * 100));
   }
 
   function setRadio(node, on) { node.setAttribute('aria-checked', on ? 'true' : 'false'); }
@@ -256,6 +260,13 @@
   // Toggles
   el.optSound.addEventListener('click', () => { settings.sound = !settings.sound; saveSettings(); renderStart(); });
   el.optHaptic.addEventListener('click', () => { settings.haptic = !settings.haptic; saveSettings(); renderStart(); });
+  el.optSoundscape.addEventListener('click', () => { settings.soundscape = !settings.soundscape; saveSettings(); renderStart(); });
+  el.optSoundscapeVolume.addEventListener('input', () => {
+    settings.soundscapeVolume = clamp(parseInt(el.optSoundscapeVolume.value, 10) / 100 || 0, 0, 1);
+    saveSettings();
+    // Live-adjust if the soundscape is currently audible.
+    if (soundscape.active && !soundscape.stopping) fadeSoundscape(masterVolumeTarget(), 0.25);
+  });
   el.optAnimation.addEventListener('click', () => { settings.animationStyle = settings.animationStyle === 'liquid' ? 'circle' : 'liquid'; saveSettings(); renderStart(); });
   el.optTheme.addEventListener('click', () => {
     settings.theme = settings.theme === 'light' ? 'dark' : 'light';
@@ -267,7 +278,9 @@
      ======================================================= */
   let audioCtx = null;
   function initAudio() {
-    if (!settings.sound) return;
+    // Create/resume the context if EITHER feature wants sound. Must run inside a
+    // user gesture (the Start tap) — iOS Safari blocks audio otherwise.
+    if (!settings.sound && !settings.soundscape) return;
     try {
       if (!audioCtx) {
         const AC = window.AudioContext || window.webkitAudioContext;
@@ -293,6 +306,202 @@
       osc.start(now);
       osc.stop(now + 0.75);
     } catch {}
+  }
+
+  /* =======================================================
+     AMBIENT SOUNDSCAPE — synthesized, breath-linked, optional
+     A warm detuned pad (root + fifth + octave) through a morphing
+     low-pass and light reverb. Brightness/pitch follow the breath
+     "fullness" computed from the SAME single timer as the visuals,
+     so it can never drift. Everything ramps gently — no hard jumps.
+     ======================================================= */
+  const soundscape = { active: false, stopping: false, nodes: null, teardownTimer: 0 };
+
+  const SS = {
+    filterMin: 320,   // Hz, fully exhaled (closed, warm)
+    filterMax: 1500,  // Hz, fully inhaled (open, brighter) — gentle range
+    detuneRise: 45,   // cents of subtle pitch rise at full inhale
+    padBase: 0.85,    // resting pad level
+    padSwell: 0.15,   // extra pad level at full inhale (soft volume swell)
+    smoothing: 0.2,   // setTargetAtTime time constant (s) — removes per-frame stepping
+    masterCeiling: 0.5, // volume slider (0..1) scales within this gentle ceiling
+  };
+
+  function masterVolumeTarget() {
+    return clamp(settings.soundscapeVolume, 0, 1) * SS.masterCeiling;
+  }
+
+  // A soft synthetic impulse response → light, spacey reverb ("floating among stars").
+  function makeReverbIR(ctx, seconds, decay) {
+    const rate = ctx.sampleRate;
+    const len = Math.max(1, Math.floor(seconds * rate));
+    const ir = ctx.createBuffer(2, len, rate);
+    for (let ch = 0; ch < 2; ch++) {
+      const data = ir.getChannelData(ch);
+      for (let i = 0; i < len; i++) {
+        data[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, decay);
+      }
+    }
+    return ir;
+  }
+
+  function buildSoundscape(ctx) {
+    const now = ctx.currentTime;
+
+    // Master = fade envelope × volume. Starts silent so fade-in never clicks.
+    const master = ctx.createGain();
+    master.gain.setValueAtTime(0.0001, now);
+    master.connect(ctx.destination);
+
+    // Morphing low-pass keeps everything warm and lets the breath "open" it.
+    const filter = ctx.createBiquadFilter();
+    filter.type = 'lowpass';
+    filter.frequency.setValueAtTime(SS.filterMin, now);
+    filter.Q.value = 0.6;
+
+    // Dry + reverb split, summed at the master.
+    const dry = ctx.createGain(); dry.gain.value = 0.7;
+    const wet = ctx.createGain(); wet.gain.value = 0.5;
+    filter.connect(dry).connect(master);
+    try {
+      const convolver = ctx.createConvolver();
+      convolver.buffer = makeReverbIR(ctx, 2.6, 2.2);
+      filter.connect(convolver); convolver.connect(wet).connect(master);
+    } catch { /* no reverb if unsupported — pad still plays dry */ }
+
+    // Pad bus sums the detuned voices before the filter.
+    const padBus = ctx.createGain();
+    padBus.gain.setValueAtTime(SS.padBase, now);
+    padBus.connect(filter);
+
+    // Warm chord low in the register: root (A2), detuned pair for beating warmth,
+    // a fifth, and a soft octave for body.
+    const padBase = 110; // A2
+    const voices = [
+      { ratio: 1,   detune: -7, gain: 0.22, type: 'sine' },
+      { ratio: 1,   detune: +7, gain: 0.22, type: 'sine' },
+      { ratio: 1.5, detune: -3, gain: 0.13, type: 'sine' },     // fifth
+      { ratio: 2,   detune: +4, gain: 0.09, type: 'triangle' }, // octave, a little color
+    ];
+    const voiceDetune = voices.map((v) => v.detune);
+    const oscs = voices.map((v) => {
+      const osc = ctx.createOscillator();
+      osc.type = v.type;
+      osc.frequency.value = padBase * v.ratio;
+      osc.detune.value = v.detune;
+      const g = ctx.createGain();
+      g.gain.value = v.gain;
+      osc.connect(g).connect(padBus);
+      osc.start(now);
+      return osc;
+    });
+
+    // Shimmer: very quiet high accents that swell near the top of the breath.
+    // Skipped under reduced-motion (it's the only "moving" texture).
+    const shimmerGain = ctx.createGain();
+    shimmerGain.gain.setValueAtTime(0.0001, now);
+    shimmerGain.connect(filter);
+    const shimmerOscs = [];
+    if (!prefersReducedMotion()) {
+      [1318.5, 1322.0].forEach((f) => { // ~E6, a detuned pair
+        const o = ctx.createOscillator();
+        o.type = 'sine';
+        o.frequency.value = f;
+        o.connect(shimmerGain);
+        o.start(now);
+        shimmerOscs.push(o);
+      });
+    }
+
+    return { master, filter, padBus, oscs, voiceDetune, shimmerGain, shimmerOscs };
+  }
+
+  // Smoothly ramp the master toward a level over `seconds` (fade in/out).
+  function fadeSoundscape(toLevel, seconds) {
+    if (!soundscape.nodes || !audioCtx) return;
+    const g = soundscape.nodes.master.gain;
+    const now = audioCtx.currentTime;
+    const current = Math.max(0.0001, g.value);
+    g.cancelScheduledValues(now);
+    g.setValueAtTime(current, now);
+    g.linearRampToValueAtTime(Math.max(0.0001, toLevel), now + Math.max(0.05, seconds));
+  }
+
+  // Called every frame from render() with breath fullness (0 empty .. 1 full).
+  // All changes are gentle setTargetAtTime ramps, never abrupt sets.
+  function updateSoundscape(fullness) {
+    if (!soundscape.active || !soundscape.nodes || !audioCtx) return;
+    const n = soundscape.nodes;
+    const now = audioCtx.currentTime;
+    const tc = SS.smoothing;
+    // Filter cutoff rises on inhale, settles on exhale (exponential = natural for pitch/Hz).
+    const cutoff = SS.filterMin * Math.pow(SS.filterMax / SS.filterMin, fullness);
+    n.filter.frequency.setTargetAtTime(cutoff, now, tc);
+    // Subtle pitch rise.
+    const rise = SS.detuneRise * fullness;
+    n.oscs.forEach((osc, i) => osc.detune.setTargetAtTime(n.voiceDetune[i] + rise, now, tc));
+    // Soft volume swell toward full inhale.
+    n.padBus.gain.setTargetAtTime(SS.padBase + SS.padSwell * fullness, now, tc);
+    // Shimmer appears only in the upper part of the breath, and stays very quiet.
+    const shimmer = 0.014 * clamp((fullness - 0.4) / 0.6, 0, 1);
+    n.shimmerGain.gain.setTargetAtTime(Math.max(0.0001, shimmer), now, tc);
+  }
+
+  function teardownNodes(nodes) {
+    if (!nodes) return;
+    const stopAll = (arr) => arr.forEach((o) => { try { o.stop(); } catch {} try { o.disconnect(); } catch {} });
+    stopAll(nodes.oscs || []);
+    stopAll(nodes.shimmerOscs || []);
+    try { nodes.master.disconnect(); } catch {}
+  }
+
+  function hardStopSoundscape() {
+    clearTimeout(soundscape.teardownTimer);
+    soundscape.teardownTimer = 0;
+    teardownNodes(soundscape.nodes);
+    soundscape.nodes = null;
+    soundscape.active = false;
+    soundscape.stopping = false;
+  }
+
+  function startSoundscape() {
+    if (!settings.soundscape) return;
+    initAudio();
+    if (!audioCtx) return;
+    hardStopSoundscape(); // clean slate (e.g. "Breathe again" tapped mid fade-out)
+    try {
+      soundscape.nodes = buildSoundscape(audioCtx);
+      soundscape.active = true;
+      soundscape.stopping = false;
+      fadeSoundscape(masterVolumeTarget(), 3.0); // gentle ~3s ease-in
+    } catch { hardStopSoundscape(); }
+  }
+
+  function stopSoundscape() {
+    if (!soundscape.nodes || !audioCtx) { hardStopSoundscape(); return; }
+    soundscape.active = false;   // stop the per-frame morph
+    soundscape.stopping = true;
+    fadeSoundscape(0, 2.0);      // gentle ~2s ease-out
+    const dying = soundscape.nodes;
+    clearTimeout(soundscape.teardownTimer);
+    soundscape.teardownTimer = setTimeout(() => {
+      teardownNodes(dying);
+      if (soundscape.nodes === dying) soundscape.nodes = null;
+      soundscape.stopping = false;
+      soundscape.teardownTimer = 0;
+    }, 2300);
+  }
+
+  function pauseSoundscape() {
+    if (!soundscape.nodes) return;
+    soundscape.active = false;   // freeze the morph
+    fadeSoundscape(0, 2.0);      // ease out while paused
+  }
+
+  function resumeSoundscape() {
+    if (!soundscape.nodes) return;
+    soundscape.active = true;
+    fadeSoundscape(masterVolumeTarget(), 1.5); // ease back in
   }
 
   /* ---------- Haptics ---------- */
@@ -380,6 +589,7 @@
     updateCycleCounter();
     enterPhase(0, /*announce*/ true);
     acquireWakeLock();
+    startSoundscape();   // fades in gently if enabled; no-op otherwise
 
     el.btnPause.textContent = 'Pause';
     el.btnPause.setAttribute('aria-label', 'Pause session');
@@ -464,6 +674,16 @@
   function render() {
     const phase = session.phases[session.phaseIndex];
     const t = clamp(session.phaseElapsed / phase.dur, 0, 1);
+
+    // ----- Ambient soundscape morph (same timer source as the visuals) -----
+    // "Fullness" = how full the breath is (0 exhaled .. 1 inhaled), derived from
+    // the same eased scale the circle uses — so audio and visuals stay locked,
+    // and it works for every mode (box / coherent / 4-7-8 / custom).
+    if (soundscape.active) {
+      const scaleNow = phase.from + (phase.to - phase.from) * easeInOutSine(t);
+      const fullness = clamp((scaleNow - SCALE_MIN) / (SCALE_MAX - SCALE_MIN), 0, 1);
+      updateSoundscape(fullness);
+    }
 
     // ----- Countdown (prominent, immediate) -----
     const remaining = Math.max(1, Math.ceil((phase.dur - session.phaseElapsed) / 1000));
@@ -567,12 +787,14 @@
       el.phaseLabel.dataset.prev = el.phaseLabel.textContent;
       el.srAnnounce.textContent = 'Paused';
       releaseWakeLock();
+      pauseSoundscape();
     } else {
       el.btnPause.textContent = 'Pause';
       el.btnPause.setAttribute('aria-label', 'Pause session');
       el.srAnnounce.textContent = `Resumed. ${session.phases[session.phaseIndex].label}`;
       acquireWakeLock();
       session.lastTs = 0; // avoid a dt spike on resume
+      resumeSoundscape();
     }
   }
 
@@ -613,6 +835,7 @@
     if (session.rafId) cancelAnimationFrame(session.rafId);
     session.rafId = 0;
     releaseWakeLock();
+    stopSoundscape();   // gentle ~2s fade-out, then tears the graph down
     // reset circle to resting visual
     el.breath.style.transform = '';
     el.breath.style.opacity = '';

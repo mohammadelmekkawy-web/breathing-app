@@ -279,6 +279,34 @@ body {
 .switch[aria-checked="true"]::before { background: var(--accent); border-color: var(--accent); }
 .switch[aria-checked="true"] .switch__dot { left: calc(100% - 1.6rem); background: var(--primary-ink); }
 
+/* Range slider (soundscape volume) — thin track, large tap area */
+.toggle--slider { flex-wrap: wrap; }
+.slider {
+  -webkit-appearance: none; appearance: none;
+  flex: 1 1 9rem; max-width: 11rem; height: var(--tap);
+  background: transparent; cursor: pointer; margin: 0;
+}
+.slider:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; border-radius: 0.5rem; }
+.slider::-webkit-slider-runnable-track {
+  height: 0.4rem; border-radius: 1rem;
+  background: var(--surface-2); border: 1px solid var(--line);
+}
+.slider::-webkit-slider-thumb {
+  -webkit-appearance: none; appearance: none;
+  width: 1.5rem; height: 1.5rem; border-radius: 50%;
+  background: var(--accent); border: none;
+  margin-top: calc((0.4rem - 1.5rem) / 2); /* center the thumb on the thin track */
+  box-shadow: 0 1px 3px var(--shadow);
+}
+.slider::-moz-range-track {
+  height: 0.4rem; border-radius: 1rem;
+  background: var(--surface-2); border: 1px solid var(--line);
+}
+.slider::-moz-range-thumb {
+  width: 1.5rem; height: 1.5rem; border-radius: 50%;
+  background: var(--accent); border: none; box-shadow: 0 1px 3px var(--shadow);
+}
+
 /* ---------- Buttons ---------- */
 .btn {
   min-height: var(--tap); padding: 0 var(--s4);

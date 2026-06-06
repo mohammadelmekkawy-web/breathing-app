@@ -123,6 +123,17 @@
                       aria-checked="true" aria-labelledby="lbl-sound"><span class="switch__dot"></span></button>
             </div>
             <div class="toggle">
+              <span class="toggle__label" id="lbl-soundscape">Ambient soundscape</span>
+              <button type="button" class="switch" id="opt-soundscape" role="switch"
+                      aria-checked="false" aria-labelledby="lbl-soundscape"><span class="switch__dot"></span></button>
+            </div>
+            <div class="toggle toggle--slider" id="soundscape-volume-row">
+              <label class="toggle__label" for="opt-soundscape-volume">Soundscape volume</label>
+              <input type="range" class="slider" id="opt-soundscape-volume"
+                     min="0" max="100" step="1" value="30"
+                     aria-label="Ambient soundscape volume" />
+            </div>
+            <div class="toggle">
               <span class="toggle__label" id="lbl-haptic">Haptic feedback</span>
               <button type="button" class="switch" id="opt-haptic" role="switch"
                       aria-checked="true" aria-labelledby="lbl-haptic"><span class="switch__dot"></span></button>

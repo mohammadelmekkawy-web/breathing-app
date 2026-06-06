@@ -154,6 +154,14 @@
     btnPause: $('btn-pause'),
     btnStop: $('btn-stop'),
 
+    // In-session audio controls
+    btnMute: $('btn-mute'),
+    btnAudioPanel: $('btn-audio-panel'),
+    audioPanel: $('audio-panel'),
+    sessOptSound: $('sess-opt-sound'),
+    sessOptSoundscape: $('sess-opt-soundscape'),
+    sessSoundscapeVolume: $('sess-soundscape-volume'),
+
     endTime: $('end-time'),
     endCount: $('end-count'),
     endCountK: $('end-count-k'),
@@ -265,7 +273,7 @@
     settings.soundscapeVolume = clamp(parseInt(el.optSoundscapeVolume.value, 10) / 100 || 0, 0, 1);
     saveSettings();
     // Live-adjust if the soundscape is currently audible.
-    if (soundscape.active && !soundscape.stopping) fadeSoundscape(masterVolumeTarget(), 0.25);
+    if (soundscape.active && !soundscape.stopping) fadeSoundscape(soundscapeAudibleTarget(), 0.25);
   });
   el.optAnimation.addEventListener('click', () => { settings.animationStyle = settings.animationStyle === 'liquid' ? 'circle' : 'liquid'; saveSettings(); renderStart(); });
   el.optTheme.addEventListener('click', () => {
@@ -291,7 +299,7 @@
   }
   // tone: a soft sine with gentle attack/release; pitch hints the direction.
   function playTone(kind) {
-    if (!settings.sound || !audioCtx) return;
+    if (muted || !settings.sound || !audioCtx) return;
     try {
       const now = audioCtx.currentTime;
       const osc = audioCtx.createOscillator();
@@ -318,6 +326,10 @@
      ======================================================= */
   const soundscape = { active: false, stopping: false, nodes: null, teardownTimer: 0 };
 
+  // Master mute is session-transient (resets each session) — it silences
+  // everything instantly without changing the user's cue/soundscape prefs.
+  let muted = false;
+
   const SS = {
     filterMin: 300,   // Hz, fully exhaled (closed, warm)
     filterMax: 1400,  // Hz, fully inhaled (open, brighter) — gentle range
@@ -334,6 +346,11 @@
 
   function masterVolumeTarget() {
     return clamp(settings.soundscapeVolume, 0, 1) * SS.masterCeiling;
+  }
+
+  // The level the soundscape should fade TO right now — honours the master mute.
+  function soundscapeAudibleTarget() {
+    return muted ? 0.0001 : masterVolumeTarget();
   }
 
   // A smooth synthetic impulse response → lush, spacious reverb.
@@ -512,7 +529,7 @@
       soundscape.nodes = buildSoundscape(audioCtx);
       soundscape.active = true;
       soundscape.stopping = false;
-      fadeSoundscape(masterVolumeTarget(), 3.0); // gentle ~3s ease-in
+      fadeSoundscape(soundscapeAudibleTarget(), 3.0); // gentle ~3s ease-in (silent if muted)
     } catch { hardStopSoundscape(); }
   }
 
@@ -540,7 +557,27 @@
   function resumeSoundscape() {
     if (!soundscape.nodes) return;
     soundscape.active = true;
-    fadeSoundscape(masterVolumeTarget(), 1.5); // ease back in
+    fadeSoundscape(soundscapeAudibleTarget(), 1.5); // ease back in (silent if muted)
+  }
+
+  // Master mute — silences cue tones (via playTone guard) and smoothly fades the
+  // soundscape, without stopping the session or losing the user's preferences.
+  function setMuted(m) {
+    muted = m;
+    if (soundscape.nodes && !soundscape.stopping) {
+      const target = (!muted && soundscape.active) ? masterVolumeTarget() : 0.0001;
+      fadeSoundscape(target, 0.6); // gentle, never a hard cut
+    }
+    updateAudioButtons();
+  }
+
+  // Sync the in-session control visuals with current settings + mute state.
+  function updateAudioButtons() {
+    el.btnMute.setAttribute('aria-pressed', muted ? 'true' : 'false');
+    el.btnMute.setAttribute('aria-label', muted ? 'Unmute all sound' : 'Mute all sound');
+    setSwitch(el.sessOptSound, settings.sound);
+    setSwitch(el.sessOptSoundscape, settings.soundscape);
+    el.sessSoundscapeVolume.value = String(Math.round(settings.soundscapeVolume * 100));
   }
 
   /* ---------- Haptics ---------- */
@@ -628,6 +665,13 @@
     updateCycleCounter();
     enterPhase(0, /*announce*/ true);
     acquireWakeLock();
+
+    // In-session audio controls start fresh: unmuted, panel closed.
+    muted = false;
+    el.audioPanel.hidden = true;
+    el.btnAudioPanel.setAttribute('aria-expanded', 'false');
+    updateAudioButtons();
+
     startSoundscape();   // fades in gently if enabled; no-op otherwise
 
     el.btnPause.textContent = 'Pause';
@@ -888,6 +932,8 @@
   function showScreen(name) {
     const map = { start: el.screenStart, session: el.screenSession, end: el.screenEnd };
     Object.entries(map).forEach(([k, node]) => { node.hidden = (k !== name); });
+    // Reflect any in-session audio changes back onto the start screen controls.
+    if (name === 'start') renderStart();
     // Move focus to a sensible target (keyboard / SR users)
     const focusTarget = {
       start: el.btnStart,
@@ -923,6 +969,40 @@
   el.btnStop.addEventListener('click', stopSession);
   el.btnRestart.addEventListener('click', () => { initAudio(); startSession(); });
   el.btnHome.addEventListener('click', () => showScreen('start'));
+
+  // ----- In-session audio controls -----
+  el.btnMute.addEventListener('click', () => setMuted(!muted));
+
+  el.btnAudioPanel.addEventListener('click', () => {
+    const willOpen = el.audioPanel.hidden;
+    el.audioPanel.hidden = !willOpen;
+    el.btnAudioPanel.setAttribute('aria-expanded', String(willOpen));
+  });
+
+  el.sessOptSound.addEventListener('click', () => {
+    settings.sound = !settings.sound;
+    saveSettings();
+    if (settings.sound) initAudio(); // ensure the context exists if enabling mid-session
+    updateAudioButtons();
+  });
+
+  el.sessOptSoundscape.addEventListener('click', () => {
+    settings.soundscape = !settings.soundscape;
+    saveSettings();
+    if (settings.soundscape) {
+      startSoundscape();                       // builds + fades in (silent if muted)
+      if (session.paused) pauseSoundscape();   // stay silent until the session resumes
+    } else {
+      stopSoundscape();                        // fades out, then tears down
+    }
+    updateAudioButtons();
+  });
+
+  el.sessSoundscapeVolume.addEventListener('input', () => {
+    settings.soundscapeVolume = clamp(parseInt(el.sessSoundscapeVolume.value, 10) / 100 || 0, 0, 1);
+    saveSettings();
+    if (soundscape.active && !soundscape.stopping) fadeSoundscape(soundscapeAudibleTarget(), 0.25);
+  });
 
   // Keyboard: Space toggles pause during a session; Escape stops.
   document.addEventListener('keydown', (e) => {

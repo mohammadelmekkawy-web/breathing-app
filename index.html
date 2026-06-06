@@ -199,6 +199,52 @@
         </div>
       </div>
 
+      <!-- In-session audio controls: always-visible mute, finer controls one tap away -->
+      <div class="audiobar">
+        <button type="button" class="iconbtn" id="btn-mute" aria-pressed="false" aria-label="Mute all sound">
+          <svg class="icon icon-sound" viewBox="0 0 24 24" aria-hidden="true" fill="none"
+               stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M11 5 6 9H3v6h3l5 4z" />
+            <path d="M16 9a4 4 0 0 1 0 6" />
+            <path d="M19 6a8 8 0 0 1 0 12" />
+          </svg>
+          <svg class="icon icon-muted" viewBox="0 0 24 24" aria-hidden="true" fill="none"
+               stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M11 5 6 9H3v6h3l5 4z" />
+            <line x1="22" y1="9" x2="16" y2="15" />
+            <line x1="16" y1="9" x2="22" y2="15" />
+          </svg>
+        </button>
+        <button type="button" class="iconbtn" id="btn-audio-panel"
+                aria-expanded="false" aria-controls="audio-panel" aria-label="Sound settings">
+          <svg class="icon" viewBox="0 0 24 24" aria-hidden="true" fill="none"
+               stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="4" y1="21" x2="4" y2="14" /><line x1="4" y1="10" x2="4" y2="3" />
+            <line x1="12" y1="21" x2="12" y2="12" /><line x1="12" y1="8" x2="12" y2="3" />
+            <line x1="20" y1="21" x2="20" y2="16" /><line x1="20" y1="12" x2="20" y2="3" />
+            <line x1="1" y1="14" x2="7" y2="14" /><line x1="9" y1="8" x2="15" y2="8" /><line x1="17" y1="16" x2="23" y2="16" />
+          </svg>
+        </button>
+
+        <div class="audio-panel" id="audio-panel" role="group" aria-label="Sound settings" hidden>
+          <div class="toggle">
+            <span class="toggle__label" id="lbl-sess-sound">Cue tones</span>
+            <button type="button" class="switch" id="sess-opt-sound" role="switch"
+                    aria-checked="true" aria-labelledby="lbl-sess-sound"><span class="switch__dot"></span></button>
+          </div>
+          <div class="toggle">
+            <span class="toggle__label" id="lbl-sess-soundscape">Soundscape</span>
+            <button type="button" class="switch" id="sess-opt-soundscape" role="switch"
+                    aria-checked="false" aria-labelledby="lbl-sess-soundscape"><span class="switch__dot"></span></button>
+          </div>
+          <div class="toggle toggle--slider">
+            <label class="toggle__label" for="sess-soundscape-volume">Volume</label>
+            <input type="range" class="slider" id="sess-soundscape-volume"
+                   min="0" max="100" step="1" value="30" aria-label="Ambient soundscape volume" />
+          </div>
+        </div>
+      </div>
+
       <div class="controls">
         <button type="button" class="btn btn--ghost" id="btn-pause" aria-label="Pause session">Pause</button>
         <button type="button" class="btn btn--stop" id="btn-stop" aria-label="Stop session and return home">Stop</button>

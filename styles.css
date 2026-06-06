@@ -307,6 +307,38 @@ body {
   background: var(--accent); border: none; box-shadow: 0 1px 3px var(--shadow);
 }
 
+/* ---------- In-session audio controls ---------- */
+.audiobar {
+  position: relative;            /* anchor for the popover panel */
+  width: 100%; max-width: 22rem;
+  display: flex; justify-content: flex-end; gap: var(--s2);
+}
+.iconbtn {
+  width: 2.75rem; height: 2.75rem;   /* 44px tap target */
+  display: grid; place-items: center;
+  border-radius: 50%; border: 1px solid var(--line);
+  background: var(--surface); color: var(--text-dim);
+  cursor: pointer; padding: 0;
+  transition: background .15s ease, color .15s ease, border-color .15s ease;
+}
+.iconbtn:hover { background: var(--surface-2); color: var(--text); }
+.iconbtn .icon { width: 1.3rem; height: 1.3rem; display: block; }
+/* Mute state: swap icon + signal with the stop hue */
+.iconbtn .icon-muted { display: none; }
+#btn-mute[aria-pressed="true"] { color: var(--stop); border-color: var(--stop); }
+#btn-mute[aria-pressed="true"] .icon-sound { display: none; }
+#btn-mute[aria-pressed="true"] .icon-muted { display: block; }
+
+/* Popover panel opens upward, right-aligned, over the empty space above */
+.audio-panel {
+  position: absolute; bottom: calc(100% + var(--s1)); right: 0;
+  width: 16rem; max-width: 86vw;
+  background: var(--surface); border: 1px solid var(--line);
+  border-radius: var(--radius); padding: 0 var(--s3) var(--s2);
+  box-shadow: 0 12px 34px var(--shadow); z-index: 6;
+}
+.audio-panel .toggle:first-child { border-top: 0; } /* no leading divider in the card */
+
 /* ---------- Buttons ---------- */
 .btn {
   min-height: var(--tap); padding: 0 var(--s4);

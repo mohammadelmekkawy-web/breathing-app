@@ -159,6 +159,8 @@
     btnHome: $('btn-home'),
 
     srAnnounce: $('sr-announce'),
+    beginnerHint: $('beginner-hint'),
+    cyclesRecommended: $('cycles-recommended'),
   };
 
   const prefersReducedMotion = () =>
@@ -173,6 +175,13 @@
      START SCREEN — reflect & edit settings
      ======================================================= */
   function renderStart() {
+    // Show beginner hint if this is likely the first time (based on localStorage)
+    const hasSeenHint = localStorage.getItem('breathe.seenHint');
+    el.beginnerHint.hidden = !!hasSeenHint;
+    if (!hasSeenHint) {
+      localStorage.setItem('breathe.seenHint', 'true');
+    }
+
     // Mode segmented
     const isBox = settings.mode === 'box';
     const isCoherent = settings.mode === 'coherent';
@@ -190,6 +199,10 @@
     const cycleLen = isBox ? 16 : 19; // box: 4s * 4 phases = 16s; 4-7-8: 4+7+8 = 19s
     const secs = settings.cycles * cycleLen;
     el.boxEstimate.textContent = formatDuration(secs * 1000);
+    
+    // Show/hide recommended badge for cycles based on defaults
+    const isRecommendedCycles = (isBox && settings.cycles === 5) || (is478 && settings.cycles === 4);
+    el.cyclesRecommended.hidden = !isRecommendedCycles;
 
     // Duration
     setRadio(el.dur5, settings.duration === 5);
@@ -209,7 +222,18 @@
   modeCards.forEach(card => {
     card.addEventListener('click', () => {
       const mode = card.getAttribute('data-mode');
+      const prevMode = settings.mode;
       settings.mode = mode;
+      
+      // Set mode-specific defaults on first selection
+      if (mode === '4-7-8' && prevMode !== '4-7-8') {
+        settings.cycles = 4;  // 4-7-8 default: 4 cycles
+      } else if ((mode === 'box' || mode === 'coherent') && settings.cycles !== 5) {
+        if (prevMode === '4-7-8') {
+          settings.cycles = 5;  // box & coherent default: 5 cycles
+        }
+      }
+      
       saveSettings();
       renderStart();
     });

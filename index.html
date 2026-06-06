@@ -37,6 +37,12 @@
       </header>
 
       <form id="start-form" class="settings" novalidate>
+        
+        <!-- First-time hint -->
+        <p class="beginner-hint" id="beginner-hint" hidden>
+          ✨ New to this? Start with the recommended setting — you can always adjust next time.
+        </p>
+
         <!-- Mode cards: goal-based selection -->
         <fieldset class="field">
           <legend class="field__label">Choose by goal</legend>
@@ -78,9 +84,12 @@
           </div>
         </fieldset>
 
-        <!-- Box & 4-7-8: cycle count -->
+        <!-- Box & 4-7-8: cycle count with recommended option -->
         <div class="field field--box-478" id="field-box-478">
-          <label class="field__label" for="cycles-value">Cycles</label>
+          <div class="field__header">
+            <label class="field__label" for="cycles-value">Cycles</label>
+            <span class="field__recommended" id="cycles-recommended" aria-hidden="true">Recommended</span>
+          </div>
           <div class="stepper" role="group" aria-label="Number of cycles">
             <button type="button" class="stepper__btn" id="cycles-dec" aria-label="Fewer cycles">−</button>
             <output class="stepper__value" id="cycles-value" aria-live="off">5</output>
@@ -89,16 +98,19 @@
           <p class="field__note"><span id="box-estimate">~1m 20s</span> · 2–8 cycles</p>
         </div>
 
-        <!-- Coherent: duration -->
+        <!-- Coherent: duration with recommended option -->
         <div class="field field--coherent" id="field-coherent" hidden>
-          <span class="field__label" id="duration-label">Duration</span>
+          <div class="field__header">
+            <span class="field__label" id="duration-label">Duration</span>
+            <span class="field__recommended" aria-hidden="true">Recommended</span>
+          </div>
           <div class="segmented segmented--sm" role="radiogroup" aria-labelledby="duration-label">
             <button type="button" class="segmented__btn" id="dur-5"
                     role="radio" aria-checked="true" data-duration="5">5 min</button>
             <button type="button" class="segmented__btn" id="dur-10"
                     role="radio" aria-checked="false" data-duration="10">10 min</button>
           </div>
-          <p class="field__note">~6 breaths per minute</p>
+          <p class="field__note">~6 breaths per minute · a good place to start</p>
         </div>
 
         <!-- Advanced options: tucked away but discoverable, values visible when open -->

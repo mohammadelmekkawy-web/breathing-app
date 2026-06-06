@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>Breathe — Calm Breathing</title>
+  <meta name="description" content="A calm, offline breathing exercise: box breathing and coherent breathing with a gentle animated guide." />
+
+  <!-- Theme / status bar -->
+  <meta name="theme-color" content="#0e1620" media="(prefers-color-scheme: dark)" />
+  <meta name="theme-color" content="#eef3f6" media="(prefers-color-scheme: light)" />
+
+  <!-- iOS home-screen support -->
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="Breathe" />
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png" />
+
+  <link rel="manifest" href="manifest.json" />
+  <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to content</a>
+
+  <!-- Visually-hidden live region: announces phase changes to screen readers -->
+  <div id="sr-announce" class="sr-only" aria-live="polite" aria-atomic="true"></div>
+
+  <main id="main" class="app">
+
+    <!-- ===================== START SCREEN ===================== -->
+    <section id="screen-start" class="screen screen--start" aria-labelledby="start-title">
+      <header class="masthead">
+        <h1 id="start-title" class="masthead__title">Breathe</h1>
+        <p class="masthead__sub">A quiet moment for your breath.</p>
+      </header>
+
+      <form id="start-form" class="settings" novalidate>
+        <!-- Mode (primary choice — Hick's Law: only two options) -->
+        <fieldset class="field">
+          <legend class="field__label">Mode</legend>
+          <div class="segmented" role="radiogroup" aria-label="Breathing mode">
+            <button type="button" class="segmented__btn" id="mode-box"
+                    role="radio" aria-checked="true" data-mode="box">
+              <span class="segmented__title">Box</span>
+              <span class="segmented__hint">4 · 4 · 4 · 4</span>
+            </button>
+            <button type="button" class="segmented__btn" id="mode-coherent"
+                    role="radio" aria-checked="false" data-mode="coherent">
+              <span class="segmented__title">Coherent</span>
+              <span class="segmented__hint">5 in · 5 out</span>
+            </button>
+          </div>
+        </fieldset>
+
+        <!-- Box: cycle count -->
+        <div class="field field--box" id="field-box">
+          <label class="field__label" for="cycles-value">Cycles</label>
+          <div class="stepper" role="group" aria-label="Number of cycles">
+            <button type="button" class="stepper__btn" id="cycles-dec" aria-label="Fewer cycles">−</button>
+            <output class="stepper__value" id="cycles-value" aria-live="off">6</output>
+            <button type="button" class="stepper__btn" id="cycles-inc" aria-label="More cycles">+</button>
+          </div>
+          <p class="field__note">5–10 cycles · about <span id="box-estimate">96s</span></p>
+        </div>
+
+        <!-- Coherent: duration -->
+        <div class="field field--coherent" id="field-coherent" hidden>
+          <span class="field__label" id="duration-label">Duration</span>
+          <div class="segmented segmented--sm" role="radiogroup" aria-labelledby="duration-label">
+            <button type="button" class="segmented__btn" id="dur-5"
+                    role="radio" aria-checked="true" data-duration="5">5 min</button>
+            <button type="button" class="segmented__btn" id="dur-10"
+                    role="radio" aria-checked="false" data-duration="10">10 min</button>
+          </div>
+          <p class="field__note">~6 breaths per minute</p>
+        </div>
+
+        <!-- Advanced options: tucked away but discoverable, values visible when open -->
+        <details class="options">
+          <summary class="options__summary">Options</summary>
+          <div class="options__body">
+            <div class="toggle">
+              <span class="toggle__label" id="lbl-sound">Sound cues</span>
+              <button type="button" class="switch" id="opt-sound" role="switch"
+                      aria-checked="true" aria-labelledby="lbl-sound"><span class="switch__dot"></span></button>
+            </div>
+            <div class="toggle">
+              <span class="toggle__label" id="lbl-haptic">Haptic feedback</span>
+              <button type="button" class="switch" id="opt-haptic" role="switch"
+                      aria-checked="true" aria-labelledby="lbl-haptic"><span class="switch__dot"></span></button>
+            </div>
+            <div class="toggle">
+              <span class="toggle__label" id="lbl-theme">Light theme</span>
+              <button type="button" class="switch" id="opt-theme" role="switch"
+                      aria-checked="false" aria-labelledby="lbl-theme"><span class="switch__dot"></span></button>
+            </div>
+          </div>
+        </details>
+
+        <!-- Primary action (Fitts's Law: large, central) -->
+        <button type="submit" class="btn btn--primary" id="btn-start">Start</button>
+      </form>
+    </section>
+
+    <!-- ===================== SESSION SCREEN ===================== -->
+    <section id="screen-session" class="screen screen--session" aria-labelledby="phase-label" hidden>
+      <p class="cycle-counter" id="cycle-counter" aria-live="off">Cycle 1 of 6</p>
+
+      <div class="guide">
+        <!-- Progress ring (ambient session progress) -->
+        <svg class="ring" viewBox="0 0 240 240" aria-hidden="true" focusable="false">
+          <circle class="ring__track" cx="120" cy="120" r="112" />
+          <circle class="ring__fill"  cx="120" cy="120" r="112" />
+        </svg>
+
+        <!-- Breathing circle -->
+        <div class="breath" id="breath">
+          <div class="breath__inner">
+            <span class="breath__phase" id="phase-label">Ready</span>
+            <span class="breath__count" id="count" aria-hidden="true"></span>
+          </div>
+        </div>
+      </div>
+
+      <div class="controls">
+        <button type="button" class="btn btn--ghost" id="btn-pause" aria-label="Pause session">Pause</button>
+        <button type="button" class="btn btn--stop" id="btn-stop" aria-label="Stop session and return home">Stop</button>
+      </div>
+    </section>
+
+    <!-- ===================== END SCREEN ===================== -->
+    <section id="screen-end" class="screen screen--end" aria-labelledby="end-title" hidden>
+      <div class="end-card">
+        <h2 id="end-title" class="end__title">Session complete</h2>
+        <p class="end__sub">Nicely done. Take that calm with you.</p>
+        <dl class="stats">
+          <div class="stat">
+            <dt class="stat__k">Time</dt>
+            <dd class="stat__v" id="end-time">—</dd>
+          </div>
+          <div class="stat">
+            <dt class="stat__k" id="end-count-k">Cycles</dt>
+            <dd class="stat__v" id="end-count">—</dd>
+          </div>
+        </dl>
+        <div class="controls controls--stack">
+          <button type="button" class="btn btn--primary" id="btn-restart">Breathe again</button>
+          <button type="button" class="btn btn--ghost" id="btn-home">Home</button>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>

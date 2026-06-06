@@ -321,6 +321,10 @@
   /* =======================================================
      SESSION ENGINE — single rAF loop
      ======================================================= */
+  // Set when a new build is ready but a session is running; applied on session end.
+  let pendingUpdateReload = false;
+  let applyPendingUpdate = () => {};
+
   const session = {
     active: false,
     paused: false,
@@ -612,6 +616,8 @@
     // reset circle to resting visual
     el.breath.style.transform = '';
     el.breath.style.opacity = '';
+    // If a new build arrived mid-session, apply it now that we're idle.
+    applyPendingUpdate();
   }
 
   /* =======================================================
@@ -681,17 +687,22 @@
   renderStart();
   showScreen('start');
 
-  // Register service worker (offline) + reliable updates.
+  // Register service worker (offline) + reliable, calm updates.
   if ('serviceWorker' in navigator) {
-    // Was a worker already controlling this page when it loaded? If so, a later
-    // takeover means a NEW build just activated → reload once to pick it up.
-    // (On a first-ever visit there's no controller, so we don't reload.)
-    const hadController = !!navigator.serviceWorker.controller;
     let refreshing = false;
-    navigator.serviceWorker.addEventListener('controllerchange', () => {
-      if (refreshing || !hadController) return;
+    const reloadForUpdate = () => {
+      if (refreshing) return;
       refreshing = true;
       window.location.reload();
+    };
+
+    // When a new build activates, the SW messages us. Apply it at a calm moment:
+    // immediately if idle, otherwise after the current breathing session ends
+    // (handled in endEngine) — we never yank the screen mid-session.
+    navigator.serviceWorker.addEventListener('message', (e) => {
+      if (!e.data || e.data.type !== 'SW_UPDATED') return;
+      if (session.active) pendingUpdateReload = true;
+      else reloadForUpdate();
     });
 
     window.addEventListener('load', () => {
@@ -707,5 +718,8 @@
         })
         .catch(() => {});
     });
+
+    // Expose the reload helper so endEngine can apply a pending update.
+    applyPendingUpdate = () => { if (pendingUpdateReload) reloadForUpdate(); };
   }
 })();

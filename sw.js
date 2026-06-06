@@ -16,7 +16,7 @@
 
 // ⚠️  Do not hand-edit unless you know why — tools/deploy.sh rewrites this line
 //     with a unique timestamp+commit on every deploy so caches always bust.
-const VERSION = '2026.06.06-170158-25f1bd7';
+const VERSION = '2026.06.06-171104-a9a58a2';
 
 const CACHE = `breathe-${VERSION}`;
 
@@ -50,16 +50,32 @@ self.addEventListener('install', (event) => {
   })());
 });
 
-/* ---- Activate: delete every old Breathe cache, then claim clients ---- */
+/* ---- Activate: delete old caches, claim clients, and heal stale pages ---- */
 self.addEventListener('activate', (event) => {
   event.waitUntil((async () => {
     const keys = await caches.keys();
-    await Promise.all(
-      keys
-        .filter((k) => k.startsWith('breathe-') && k !== CACHE)
-        .map((k) => caches.delete(k))
-    );
+    const oldBreatheCaches = keys.filter((k) => k.startsWith('breathe-') && k !== CACHE);
+    // 'breathe-v1' was the original cache-first build whose page can't self-update.
+    const migratingFromLegacy = keys.includes('breathe-v1');
+
+    await Promise.all(oldBreatheCaches.map((k) => caches.delete(k)));
     await self.clients.claim();
+
+    // First install (no old cache): nothing stale to refresh — don't reload.
+    if (oldBreatheCaches.length === 0) return;
+
+    const windows = await self.clients.matchAll({ type: 'window' });
+    for (const client of windows) {
+      if (migratingFromLegacy && typeof client.navigate === 'function') {
+        // The open page is running the OLD app.js (can't react to us), so force a
+        // one-time reload. After this it's on the network-first build and self-heals.
+        client.navigate(client.url).catch(() => {});
+      } else {
+        // Modern page: let it decide when to reload (it waits for a calm moment,
+        // never mid-session). See the SW_UPDATED handler in app.js.
+        client.postMessage({ type: 'SW_UPDATED' });
+      }
+    }
   })());
 });
 

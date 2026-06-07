@@ -16,7 +16,7 @@
 
 // ⚠️  Do not hand-edit unless you know why — tools/deploy.sh rewrites this line
 //     with a unique timestamp+commit on every deploy so caches always bust.
-const VERSION = '2026.06.07-075820-af4ca89';
+const VERSION = '2026.06.07-083309-8063ec0';
 
 const CACHE = `breathe-${VERSION}`;
 
@@ -26,14 +26,18 @@ const ASSETS = [
   './styles.css',
   './app.js',
   './manifest.json',
+  './orb3d.js',                       // 3D liquid module (lazy-imported)
+  './vendor/three.module.min.js',     // bundled Three.js — works fully offline
   './icons/icon-192.png',
   './icons/icon-512.png',
   './icons/icon-512-maskable.png',
   './icons/apple-touch-icon.png',
 ];
 
-// Shell = things that change every release. Served network-first.
+// Shell = things that change every release → network-first. The vendor library
+// is static/large, so it's treated as cache-first (not re-fetched each load).
 function isShell(url) {
+  if (/\/vendor\//.test(url.pathname)) return false;
   return url.pathname.endsWith('/') || /\.(html|css|js|json)$/i.test(url.pathname);
 }
 

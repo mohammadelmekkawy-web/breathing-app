@@ -104,7 +104,7 @@
         sound: s.sound !== false,
         haptic: s.haptic !== false,
         theme: s.theme === 'light' ? 'light' : 'dark',
-        animationStyle: s.animationStyle === 'liquid' ? 'liquid' : 'circle',
+        animationStyle: ['circle', 'liquid', 'liquid3d'].includes(s.animationStyle) ? s.animationStyle : 'circle',
         bgTrack: ['off', 'leberch', 'starostin'].includes(s.bgTrack) ? s.bgTrack : 'off',
         bgVolume: clamp(parseFloat(s.bgVolume != null ? s.bgVolume : s.soundscapeVolume) || DEFAULTS.bgVolume, 0, 1),
         calmCheck: s.calmCheck !== false,
@@ -302,9 +302,10 @@
     cyclesRecommended: $('cycles-recommended'),
     liquidContainer: $('liquid-container'),
     orbCanvas: $('orb-canvas'),
+    orb3dCanvas: $('orb3d-canvas'),
     phaseLabelLiquid: $('phase-label-liquid'),
     countLiquid: $('count-liquid'),
-    optAnimation: $('opt-animation'),
+    optVisual: $('opt-visual'),
 
     // Welcome
     screenWelcome: $('screen-welcome'),
@@ -423,7 +424,7 @@
     // Toggles
     setSwitch(el.optSound, settings.sound);
     setSwitch(el.optHaptic, settings.haptic);
-    setSwitch(el.optAnimation, settings.animationStyle === 'liquid');
+    el.optVisual.value = settings.animationStyle;
     setSwitch(el.optCalm, settings.calmCheck);
     setSwitch(el.optTheme, settings.theme === 'light');
 
@@ -494,7 +495,12 @@
   if (bgOptionsDetails) {
     bgOptionsDetails.addEventListener('toggle', () => { if (!bgOptionsDetails.open) stopPreview(); });
   }
-  el.optAnimation.addEventListener('click', () => { settings.animationStyle = settings.animationStyle === 'liquid' ? 'circle' : 'liquid'; saveSettings(); renderStart(); });
+  el.optVisual.addEventListener('change', () => {
+    const v = el.optVisual.value;
+    settings.animationStyle = ['circle', 'liquid', 'liquid3d'].includes(v) ? v : 'circle';
+    saveSettings();
+    renderStart();
+  });
   el.optTheme.addEventListener('click', () => {
     settings.theme = settings.theme === 'light' ? 'dark' : 'light';
     saveSettings(); applyTheme(); renderStart();
@@ -1003,6 +1009,22 @@
      ======================================================= */
   const orb = { canvas: null, ctx: null, particles: null, spriteWhite: null, spriteWarm: null };
 
+  // ---- Experimental 3D orb: lazy-loaded Three.js module (offline-precached).
+  //      Any failure (no WebGL, load error, shader error caught) leaves
+  //      orb3dState !== 'ready', so render() quietly uses the 2D orb instead. ----
+  let orb3dState = 'idle'; // 'idle' | 'loading' | 'ready' | 'failed'
+  let orb3dApi = null;
+  function ensureOrb3d() {
+    if (orb3dState !== 'idle') return;
+    orb3dState = 'loading';
+    import('./orb3d.js')
+      .then((mod) => {
+        try { mod.init(el.orb3dCanvas); orb3dApi = mod; orb3dState = 'ready'; }
+        catch (e) { orb3dState = 'failed'; }
+      })
+      .catch(() => { orb3dState = 'failed'; });
+  }
+
   function makeGlowSprite(rgb) {
     const c = document.createElement('canvas');
     const S = 32; c.width = S; c.height = S;
@@ -1179,18 +1201,31 @@
       el.countLiquid.textContent = String(remaining);
     }
 
-    // Show/hide animations based on setting
-    const useLiquid = settings.animationStyle === 'liquid';
-    el.breath.hidden = useLiquid;
-    el.liquidContainer.hidden = !useLiquid;
+    // Show/hide visuals based on setting (circle / liquid 2D / liquid 3D).
+    const style = settings.animationStyle;
+    const wantLiquid = (style === 'liquid' || style === 'liquid3d');
+    el.breath.hidden = wantLiquid;
+    el.liquidContainer.hidden = !wantLiquid;
 
-    if (useLiquid) {
-      // ----- Glowing magical orb -----
+    if (wantLiquid) {
       // Fill = eased breath "fullness" from the SAME single timer, so it stays
       // locked to the breath and works for every mode (incl. holds & custom).
       const scaleNow = phase.from + (phase.to - phase.from) * easeInOutSine(t);
       const fullness = clamp((scaleNow - SCALE_MIN) / (SCALE_MAX - SCALE_MIN), 0, 1);
-      if (ensureOrb()) drawOrb(fullness, performance.now());
+      // 3D only when chosen, motion allowed, and the module is ready; otherwise
+      // the 2D orb is used (also the calm flat fill under reduced-motion).
+      const want3d = (style === 'liquid3d') && !prefersReducedMotion();
+      if (want3d) ensureOrb3d();
+      if (want3d && orb3dState === 'ready') {
+        el.orbCanvas.hidden = true;
+        el.orb3dCanvas.hidden = false;
+        try { orb3dApi.update(fullness, performance.now()); }
+        catch (e) { orb3dState = 'failed'; }  // drop to 2D from here on
+      } else {
+        el.orb3dCanvas.hidden = true;
+        el.orbCanvas.hidden = false;
+        if (ensureOrb()) drawOrb(fullness, performance.now());
+      }
     } else {
       // ----- Circle Animation -----
       if (prefersReducedMotion()) {

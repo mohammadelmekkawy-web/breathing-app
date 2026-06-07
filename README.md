@@ -10,7 +10,9 @@ designed to ask for the least attention possible.
 - **Custom patterns** — build your own duration combinations and save them locally.
 - **Goal-based mode selection** — cards describe the benefit ("feel in control", "calm down") instead of technique names.
 - **Beginner guidance** — recommended default settings and first-time hint on startup.
-- **Glowing orb visual** — optional alternative to the circle: a round vessel where soft blue liquid (clipped strictly inside) rises on the inhale and falls on the exhale, with a gently swaying wavy surface, a soft inner glow, and white/warm-yellow particles that appear and drift as it fills — a serene "galaxy in a bubble." Canvas-rendered and modest in cost; reduced-motion shows a calm flat fill with no waves or particles.
+- **Glowing orb visuals** — optional alternatives to the circle, chosen in Options → *Breathing visual*:
+  - **Liquid orb (2D)** — a canvas vessel: soft blue liquid (clipped strictly inside) rises/falls with the breath, a standing-wave rolling surface, soft inner glow, and white/warm-yellow particles that grow as it fills.
+  - **Liquid orb (3D ✨, experimental)** — a genuine WebGL sphere via **Three.js** (bundled locally in `vendor/` and service-worker-precached, so it works fully offline — no CDN). Custom shaders give 3D rolling waves on the waterline, a fresnel glass shell, and a GPU-points dot system. Loaded lazily only when selected; if WebGL/the module fails it silently falls back to the 2D orb. Reduced-motion uses the calm flat 2D fill (Three never loads).
 - **Background meditation music** — optional, off by default. Choose one of two looping ambient MP3 tracks; preview them in settings before committing. Seamlessly looped (crossfade at the seam) with gentle fade in/out, layered under the phase-change cue tones so the app stays usable eyes-closed. Cached after first play for offline use.
 - **In-session audio controls** — always-visible mute plus a one-tap panel (cue tones, **ambient track picker**, volume). Switching the ambient track mid-session crossfades smoothly without interrupting the breathing.
 - **Animated welcome + onboarding** — a first-launch intro (with a gentle chime) and a quick, skippable profile (name, age range, goal) that suggests a recommended mode. Replayable from settings.
@@ -247,6 +249,8 @@ styles.css      theme tokens, layout, reduced-motion + safe-area handling
 app.js          settings, the single-timer engine, audio, haptics, wake lock, SW reg + auto-update
 manifest.json   PWA manifest
 sw.js           service worker — network-first shell, versioned cache, offline fallback
+orb3d.js        experimental 3D liquid orb (Three.js ES module, lazy-imported)
+vendor/         bundled Three.js (three.module.min.js, ~656 KB / ~163 KB gzipped) — precached for offline
 icons/          generated PNG icons (192, 512, 512 maskable, apple-touch-icon)
 tools/          dev helpers: icon generator, a tiny static server, deploy.sh (cache-busting deploy)
 ```

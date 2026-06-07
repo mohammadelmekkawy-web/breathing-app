@@ -1542,18 +1542,26 @@
   async function shareInvite() {
     const text = "I've been taking a few quiet minutes to breathe and feel calmer lately — come try it with me 🌿";
     const url = SHARE_URL;
+    const full = `${text}\n${url}`;
+    // 1) Native share sheet (ideal on phones).
     if (typeof navigator.share === 'function') {
+      const t0 = Date.now();
       try {
         await navigator.share({ title: 'Breathe', text, url });
-        return; // shared successfully
+        return; // shared
       } catch (e) {
-        if (e && e.name === 'AbortError') return;   // user cancelled — fine, do nothing
-        // any other failure → fall through to clipboard so the button always works
+        // A real user-cancel takes a moment (they saw the sheet). An *instant*
+        // AbortError usually means the sheet never opened (an iOS quirk) — in
+        // that case fall through to the visible fallback instead of silently
+        // swallowing it.
+        const cancelledByUser = e && e.name === 'AbortError' && (Date.now() - t0) > 250;
+        if (cancelledByUser) return;
       }
     }
-    const full = `${text}\n${url}`;
-    try { await navigator.clipboard.writeText(full); shareFlash(); return; } catch {}
-    openExport('breathe-invite.txt', full, 'text/plain'); // last resort: show it to copy
+    // 2) No native share (or it failed): copy if we can, and ALWAYS show a
+    //    visible sheet so tapping the button never appears to do nothing.
+    try { await navigator.clipboard.writeText(full); } catch {}
+    openExport('breathe-invite.txt', full, 'text/plain');
   }
 
   function downloadFile(filename, text, type) {

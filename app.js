@@ -1731,35 +1731,117 @@
   // Flash a brief confirmation on the share buttons' labels (clipboard fallback).
   function shareFlash() {
     const labels = document.querySelectorAll('.invite-label');
-    labels.forEach((n) => { if (!n.dataset.orig) n.dataset.orig = n.textContent; n.textContent = 'Invitation copied ✓'; });
+    labels.forEach((n) => { if (!n.dataset.orig) n.dataset.orig = n.textContent; n.textContent = 'Saved ✓'; });
     clearTimeout(shareFlash._t);
     shareFlash._t = setTimeout(() => {
       document.querySelectorAll('.invite-label').forEach((n) => { if (n.dataset.orig) n.textContent = n.dataset.orig; });
     }, 2200);
   }
+  function downloadBlob(filename, blob) {
+    try {
+      const u = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = u; a.download = filename; a.rel = 'noopener';
+      document.body.appendChild(a); a.click(); document.body.removeChild(a);
+      setTimeout(() => URL.revokeObjectURL(u), 2000);
+    } catch {}
+  }
+
+  // Render a clean "progress" card image (PNG) from the user's REAL stats, so
+  // sharing sends a clear picture of their dashboard. Resolves to a File (or
+  // Blob if File isn't available).
+  function buildShareImage() {
+    return new Promise((resolve, reject) => {
+      try {
+        const W = 1080, H = 1350;
+        const c = document.createElement('canvas'); c.width = W; c.height = H;
+        const g = c.getContext('2d');
+        const FT = '-apple-system, "Segoe UI", Roboto, system-ui, sans-serif';
+        const cx = W / 2;
+        g.textAlign = 'center';
+
+        const bg = g.createLinearGradient(0, 0, 0, H);
+        bg.addColorStop(0, '#0e1620'); bg.addColorStop(1, '#13233a');
+        g.fillStyle = bg; g.fillRect(0, 0, W, H);
+        const rg = g.createRadialGradient(cx, H * 0.24, 40, cx, H * 0.24, 560);
+        rg.addColorStop(0, 'rgba(60,120,168,0.32)'); rg.addColorStop(1, 'rgba(60,120,168,0)');
+        g.fillStyle = rg; g.fillRect(0, 0, W, H);
+
+        // decorative orb (gold ring + blue fill) — echoes the app
+        const oy = H * 0.235, or = 150;
+        g.save();
+        g.beginPath(); g.arc(cx, oy, or - 10, 0, Math.PI * 2); g.clip();
+        const lg = g.createLinearGradient(0, oy - or, 0, oy + or);
+        lg.addColorStop(0, 'rgba(80,130,180,0.30)'); lg.addColorStop(1, 'rgba(40,90,140,0.92)');
+        g.fillStyle = lg; g.fillRect(cx - or, oy - or * 0.1, 2 * or, or + or * 0.1);
+        g.restore();
+        g.beginPath(); g.arc(cx, oy, or, 0, Math.PI * 2);
+        g.strokeStyle = '#efd49a'; g.lineWidth = 8; g.stroke();
+
+        const name = (profile.name || '').trim();
+        g.fillStyle = '#eaf1f6'; g.font = '600 66px ' + FT;
+        g.fillText('Breathe', cx, H * 0.40);
+        g.fillStyle = '#aebecb'; g.font = '500 36px ' + FT;
+        g.fillText(name ? (name + "'s progress") : 'My progress', cx, H * 0.40 + 58);
+
+        const delta = calmDeltaAvg();
+        const wk = weekStats();
+        const stats = [
+          ['Sessions', String(progress.history.length)],
+          ['Practice', formatLong(lifetimeMs())],
+          ['Rhythm', progress.streak.current + ' day' + (progress.streak.current === 1 ? '' : 's')],
+          ['Points', String(progress.points)],
+          ['Avg calm', delta ? ((delta.avg >= 0 ? '+' : '') + (Math.round(delta.avg * 10) / 10)) : '—'],
+          ['This week', String(wk.thisWeek.sessions)],
+        ];
+        const colX = [W * 0.30, W * 0.70];
+        const top = H * 0.56, rowH = 150;
+        for (let i = 0; i < stats.length; i++) {
+          const x = colX[i % 2], y = top + Math.floor(i / 2) * rowH;
+          g.fillStyle = '#efd49a'; g.font = '700 60px ' + FT;
+          g.fillText(stats[i][1], x, y);
+          g.fillStyle = '#9fb1c0'; g.font = '600 26px ' + FT;
+          g.fillText(stats[i][0].toUpperCase(), x, y + 42);
+        }
+
+        g.fillStyle = '#7fb6cf'; g.font = '500 32px ' + FT;
+        g.fillText('🌿  a few calm minutes a day', cx, H - 130);
+        g.fillStyle = '#9fb1c0'; g.font = '500 27px ' + FT;
+        g.fillText('mohammadelmekkawy-web.github.io/breathing-app', cx, H - 78);
+
+        c.toBlob((blob) => {
+          if (!blob) { reject(new Error('toBlob failed')); return; }
+          let f;
+          try { f = new File([blob], 'breathe-progress-' + todayStr() + '.png', { type: 'image/png' }); }
+          catch (e) { f = blob; }
+          resolve(f);
+        }, 'image/png');
+      } catch (e) { reject(e); }
+    });
+  }
+
   async function shareInvite() {
-    const text = "I've been taking a few quiet minutes to breathe and feel calmer lately — come try it with me 🌿";
     const url = SHARE_URL;
-    const full = `${text}\n${url}`;
-    // 1) Native share sheet (ideal on phones).
+    const text = "I've been taking a few quiet minutes to breathe and feel calmer 🌿 — come try it with me";
+    let file = null;
+    try { file = await buildShareImage(); } catch (e) { file = null; }
+
+    // 1) Share the progress IMAGE via the native sheet → WhatsApp, etc.
+    if (file && typeof navigator.share === 'function' && navigator.canShare && navigator.canShare({ files: [file] })) {
+      const t0 = Date.now();
+      try { await navigator.share({ files: [file], text, url }); return; }
+      catch (e) { if (e && e.name === 'AbortError' && (Date.now() - t0) > 250) return; }
+    }
+    // 2) No file sharing → share text + link.
     if (typeof navigator.share === 'function') {
       const t0 = Date.now();
-      try {
-        await navigator.share({ title: 'Breathe', text, url });
-        return; // shared
-      } catch (e) {
-        // A real user-cancel takes a moment (they saw the sheet). An *instant*
-        // AbortError usually means the sheet never opened (an iOS quirk) — in
-        // that case fall through to the visible fallback instead of silently
-        // swallowing it.
-        const cancelledByUser = e && e.name === 'AbortError' && (Date.now() - t0) > 250;
-        if (cancelledByUser) return;
-      }
+      try { await navigator.share({ title: 'Breathe', text, url }); return; }
+      catch (e) { if (e && e.name === 'AbortError' && (Date.now() - t0) > 250) return; }
     }
-    // 2) No native share (or it failed): copy if we can, and ALWAYS show a
-    //    visible sheet so tapping the button never appears to do nothing.
-    try { await navigator.clipboard.writeText(full); } catch {}
-    openExport('breathe-invite.txt', full, 'text/plain');
+    // 3) Desktop/unsupported fallback: save the picture + copy the caption.
+    if (file) downloadBlob((file.name || ('breathe-progress-' + todayStr() + '.png')), file);
+    try { await navigator.clipboard.writeText(text + '\n' + url); } catch {}
+    shareFlash();
   }
 
   function downloadFile(filename, text, type) {

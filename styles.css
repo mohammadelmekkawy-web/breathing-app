@@ -563,7 +563,7 @@ body {
 
 /* Calm "invite a friend" button (dashboard + summary card) */
 .btn--invite { display: inline-flex; align-items: center; justify-content: center; gap: 0.5rem; }
-.btn--invite .icon-leaf { width: 1.15rem; height: 1.15rem; flex: none; color: var(--accent); }
+.btn--invite .icon-share { width: 1.2rem; height: 1.2rem; flex: none; color: var(--accent); }
 /* Make the whole button a single tap target (iOS can otherwise swallow taps
    that land on a child SVG/text inside a button). */
 .btn--invite svg, .btn--invite .invite-label { pointer-events: none; }

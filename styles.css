@@ -557,6 +557,7 @@ body {
 .stats--grid .stat { text-align: center; }
 .stats--grid .stat__v { font-size: 1.3rem; }
 
+.rhythm-note { color: var(--text-dim); font-size: 0.82rem; line-height: 1.45; margin: calc(-1 * var(--s2)) 0 var(--s3); text-align: center; opacity: 0.9; }
 .end__milestone { color: var(--text-dim); font-size: 0.95rem; margin: 0 0 var(--s2); line-height: 1.45; }
 .end__calm { color: var(--text); font-size: 1rem; margin: 0 0 var(--s3); font-weight: 500; }
 

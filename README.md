@@ -14,8 +14,8 @@ designed to ask for the least attention possible.
 - **Background meditation music** — optional, off by default. Choose one of two looping ambient MP3 tracks; preview them in settings before committing. Seamlessly looped (crossfade at the seam) with gentle fade in/out, layered under the phase-change cue tones so the app stays usable eyes-closed. Cached after first play for offline use.
 - **In-session audio controls** — always-visible mute plus a one-tap panel (cue tones, background music, volume) that fade in/out without interrupting the session.
 - **Animated welcome + onboarding** — a first-launch intro (with a gentle chime) and a quick, skippable profile (name, age range, goal) that suggests a recommended mode. Replayable from settings.
-- **Encouragement-only gamification** — points per session and a forgiving day-streak that *only* builds up (a missed day pauses it, never resets, no guilt). Structured for a future (local) leaderboard.
-- **Honest end-of-session dashboard** — real personal stats (session minutes, totals, lifetime, streak, points), an effective-dose ring toward the research-backed ~5–10 min/day, general-info consistency milestones, and an optional 1–5 calm self-check with your own before/after delta. No invented biomarkers.
+- **Encouragement-only gamification** — points per session and a forgiving **Rhythm** (the days you keep coming back) that *only* builds up: a missed day pauses it, never resets, no guilt. Structured for a future (local) leaderboard.
+- **Honest end-of-session dashboard** — real personal stats (session minutes, totals, lifetime, rhythm, points), an effective-dose ring toward the research-backed ~5–10 min/day, general-info consistency milestones, and an optional 1–5 calm self-check with your own before/after delta. No invented biomarkers.
 - **Local data export** — download your full history as JSON or CSV (with a readme header). Everything stays on your device; nothing is ever uploaded.
 
 An animated guide circle (or liquid fill) shows your breathing in real time. The phase label,
@@ -143,7 +143,7 @@ Legend: ✅ done · 🟡 partial / caveat · ⬜ skipped
 ### Calm technology
 | Item | Status | Notes |
 |---|---|---|
-| Minimum attention | ✅ | No badges, streaks, notifications, or nags. Progress is a glanceable ring with **no number** to invite clock-watching. |
+| Minimum attention | ✅ | No badges, guilt-trips, notifications, or nags. The "Rhythm" only grows and never breaks, so there's nothing to lose. |
 | One-tap start, advanced tucked away | ✅ | Start screen reduces to **mode + Start** (Hick’s Law); options live in a disclosure. |
 | No dark patterns | ✅ | Nothing tries to retain or guilt you. |
 
@@ -166,8 +166,8 @@ Legend: ✅ done · 🟡 partial / caveat · ⬜ skipped
 | Animated welcome (first launch, replayable) | ✅ | Pulsing orb + staggered text beats (reduced-motion → static), gentle intro chime on first touch, "Get started" → onboarding. Re-openable via **Profile & data → Replay intro**. |
 | Onboarding profile | ✅ | Name, age range, goal as tappable chips; goal suggests a mode (overridable); skippable; persisted to `localStorage`. |
 | Points | ✅ | Awarded only on **completed** sessions (~5/min + completion bonus). |
-| Forgiving streak | ✅ | Only builds up; a missed day pauses it (never resets, no guilt); "welcome back" after a gap. Structured (points + streak) for a future local leaderboard. |
-| Honest dashboard | ✅ | Real stats only (session/lifetime/sessions/streak/points) + effective-dose ring to ~5–10 min + general-info weekly milestone. **No fabricated biomarker** — the only "calm" figure is the user's own 1–5 self-report, always labeled as such. |
+| Forgiving "Rhythm" | ✅ | Labelled **Rhythm** (not "streak") with a calm one-line description, since a streak implies something you can break. Only builds up; a missed day pauses it (never resets, no guilt); "let's pick up your rhythm" after a gap. Structured (points + rhythm) for a future local leaderboard. |
+| Honest dashboard | ✅ | Real stats only (session/lifetime/sessions/rhythm/points) + effective-dose ring to ~5–10 min + general-info weekly milestone. **No fabricated biomarker** — the only "calm" figure is the user's own 1–5 self-report, always labeled as such. |
 | Optional calm check | ✅ | 1–5 before/after with Skip; stores both; shows the user's own delta and running average. Toggle in Options. |
 | Data export (JSON + CSV) | ✅ | Both formats with a readme/header explaining every field; uses the share sheet where available, else downloads. |
 | Data stays local | ✅ | All profile/progress in `localStorage`; an on-screen note on onboarding and in **Profile & data** states it's never uploaded. |

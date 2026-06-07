@@ -1214,11 +1214,11 @@
       return;
     }
     const parts = [];
-    if (progress.streak.current > 0) parts.push(`🔥 ${progress.streak.current}-day streak`);
+    if (progress.streak.current > 0) parts.push(`🔥 ${progress.streak.current}-day rhythm`);
     if (progress.points > 0) parts.push(`${progress.points} pts`);
     const away = progress.streak.lastDate && dayDiff(progress.streak.lastDate, todayStr()) >= 2;
     let lead;
-    if (away) lead = name ? `Welcome back, ${name} — let's pick up where you left off.` : `Welcome back — let's pick up where you left off.`;
+    if (away) lead = name ? `Welcome back, ${name} — let's pick up your rhythm.` : `Welcome back — let's pick up your rhythm.`;
     else if (name) lead = `Hello, ${name}.`;
     else lead = `Welcome back.`;
     el.greeting.textContent = parts.length ? `${lead}  ·  ${parts.join('  ·  ')}` : lead;
@@ -1291,7 +1291,7 @@
     let milestone = days > 0
       ? `You've hit the ~5–10 min daily dose on ${days} day${days === 1 ? '' : 's'} in the last week.`
       : `Small and consistent wins — aim for ~5–10 min a day.`;
-    if (d.wasAway) milestone = `Welcome back — picking up right where you left off.  ` + milestone;
+    if (d.wasAway) milestone = `Welcome back — let's pick up your rhythm.  ` + milestone;
     el.endMilestone.textContent = milestone;
 
     // Calm self-report — always labeled as the user's own rating, never a biomarker.
@@ -1333,9 +1333,9 @@
           'profile.age': 'Your selected age range',
           'profile.goals': 'Your selected goals (one or more)',
           points: 'Total encouragement points',
-          'streak.current': 'Forgiving day-streak — only grows; a missed day pauses it and never resets to zero',
-          'streak.longest': 'Highest streak reached',
-          'streak.lastDate': 'Last practice day (local YYYY-MM-DD)',
+          'rhythm.current': 'Your rhythm — the days you keep coming back; only grows, a missed day pauses it and never resets to zero',
+          'rhythm.longest': 'Highest rhythm reached',
+          'rhythm.lastDate': 'Last practice day (local YYYY-MM-DD)',
           'sessions[].date': 'Practice day (local YYYY-MM-DD)',
           'sessions[].ts': 'Timestamp (epoch milliseconds)',
           'sessions[].mode': 'Internal mode id',
@@ -1350,7 +1350,7 @@
       },
       profile: { name: profile.name, age: profile.age, goals: profile.goals },
       points: progress.points,
-      streak: progress.streak,
+      rhythm: progress.streak,
       sessions: progress.history,
     };
   }
@@ -1376,7 +1376,7 @@
       ].join(','));
     });
     lines.push('');
-    lines.push(`# Totals: sessions=${progress.history.length}, points=${progress.points}, current_streak=${progress.streak.current}, lifetime_min=${(lifetimeMs() / 60000).toFixed(1)}`);
+    lines.push(`# Totals: sessions=${progress.history.length}, points=${progress.points}, current_rhythm=${progress.streak.current}, lifetime_min=${(lifetimeMs() / 60000).toFixed(1)}`);
     return lines.join('\n');
   }
   function downloadFile(filename, text, type) {

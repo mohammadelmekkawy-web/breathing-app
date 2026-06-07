@@ -363,7 +363,7 @@
     sumRhythm: $('sum-rhythm'),
     sumPoints: $('sum-points'),
     sumWeek: $('sum-week'),
-    sumCalm: $('sum-calm'),
+    sumAvg: $('sum-avg'),
     sumTrend: $('sum-trend'),
     sumCalmNote: $('sum-calm-note'),
     btnShareSummary: $('btn-share-summary'),
@@ -1556,16 +1556,24 @@
     const name = (profile.name || '').trim();
     el.summaryTitle.textContent = name ? `${name}'s progress` : 'Your progress';
     el.summarySub.textContent = 'How your practice is going — only your own data, kept on your device.';
-    el.sumSessions.textContent = String(progress.history.length);
+    const nSess = progress.history.length;
+    el.sumSessions.textContent = String(nSess);
     el.sumLifetime.textContent = formatLong(lifetimeMs());
     el.sumRhythm.textContent = String(progress.streak.current);
     el.sumPoints.textContent = String(progress.points);
     el.sumWeek.textContent = String(weekStats().thisWeek.sessions);
-    const delta = calmDeltaAvg();
-    el.sumCalm.textContent = delta ? `${delta.avg >= 0 ? '+' : ''}${Math.round(delta.avg * 10) / 10}` : '—';
+    el.sumAvg.textContent = nSess ? formatLong(lifetimeMs() / nSess) : '—';
     el.sumTrend.textContent = trendLine(weekStats());
+
+    // Calm self-report lives here as a plain sentence (not a cryptic tile).
+    const delta = calmDeltaAvg();
     if (delta) {
-      el.sumCalmNote.textContent = '“Calmer after” is your own 1–5 self-rating (after − before) — not a measurement.';
+      const a = Math.round(delta.avg * 10) / 10;
+      const both = progress.history.filter((h) => h.calmBefore != null && h.calmAfter != null);
+      const calmer = both.filter((h) => h.calmAfter > h.calmBefore).length;
+      el.sumCalmNote.textContent =
+        `On the sessions you rated, you felt calmer afterward ${calmer} of ${delta.n} time${delta.n === 1 ? '' : 's'}` +
+        ` — about ${a >= 0 ? '+' : ''}${a} on your own 1–5 calm scale (your self-report, not a measurement).`;
       el.sumCalmNote.hidden = false;
     } else {
       el.sumCalmNote.hidden = true;
@@ -1692,14 +1700,15 @@
         g.fillStyle = '#aebecb'; g.font = '500 36px ' + FT;
         g.fillText(name ? (name + "'s progress") : 'My progress', cx, H * 0.40 + 58);
 
-        const delta = calmDeltaAvg();
         const wk = weekStats();
+        const nSess = progress.history.length;
+        const avgMs = nSess ? lifetimeMs() / nSess : 0;
         const stats = [
-          ['Sessions', String(progress.history.length)],
+          ['Sessions', String(nSess)],
           ['Practice', formatLong(lifetimeMs())],
           ['Rhythm', progress.streak.current + ' day' + (progress.streak.current === 1 ? '' : 's')],
           ['Points', String(progress.points)],
-          ['Calmer after', delta ? ((delta.avg >= 0 ? '+' : '') + (Math.round(delta.avg * 10) / 10)) : '—'],
+          ['Avg session', nSess ? formatLong(avgMs) : '—'],
           ['This week', String(wk.thisWeek.sessions)],
         ];
         const colX = [W * 0.30, W * 0.70];

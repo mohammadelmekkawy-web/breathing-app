@@ -235,6 +235,13 @@
         <h2 id="end-title" class="end__title">Session complete</h2>
         <p class="end__sub" id="end-sub">Nicely done. Take that calm with you.</p>
 
+        <!-- Points earned this session (gentle reveal) -->
+        <div class="earned" id="end-earned" aria-live="polite" hidden>
+          <span class="earned__num" id="end-earned-num">+0</span>
+          <span class="earned__label">points this session</span>
+          <span class="earned__hint">about 5 a minute — just for showing up</span>
+        </div>
+
         <!-- Effective-dose ring: progress toward the research-backed daily range -->
         <div class="dose">
           <svg class="dose__ring" viewBox="0 0 120 120" aria-hidden="true">
@@ -291,7 +298,7 @@
           <div class="stat"><dt class="stat__k">Rhythm</dt><dd class="stat__v" id="sum-rhythm">—</dd></div>
           <div class="stat"><dt class="stat__k">Points</dt><dd class="stat__v" id="sum-points">—</dd></div>
           <div class="stat"><dt class="stat__k">This week</dt><dd class="stat__v" id="sum-week">—</dd></div>
-          <div class="stat"><dt class="stat__k">Avg calm</dt><dd class="stat__v" id="sum-calm">—</dd></div>
+          <div class="stat"><dt class="stat__k">Calmer after</dt><dd class="stat__v" id="sum-calm">—</dd></div>
         </dl>
 
         <p class="rhythm-note">The days you keep coming back to breathe. Miss one? No problem — just pick it back up.</p>

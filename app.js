@@ -341,12 +341,15 @@
 
     // Dashboard extras
     endSub: $('end-sub'),
+    endEarned: $('end-earned'),
+    endEarnedNum: $('end-earned-num'),
     endStreak: $('end-streak'),
     endPoints: $('end-points'),
     endSessions: $('end-sessions'),
     endLifetime: $('end-lifetime'),
     endMilestone: $('end-milestone'),
     endCalm: $('end-calm'),
+    dose: document.querySelector('.dose'),
     doseFill: document.querySelector('.dose__fill'),
     doseNum: $('dose-num'),
     doseCaption: $('dose-caption'),
@@ -1160,7 +1163,7 @@
         durationMs, mode: modeId, modeLabel: modeLabelFor(modeId),
         cycles: cyclesDone, calmBefore, calmAfter,
       });
-      renderDashboard({ durationMs, cyclesDone, isCycleMode, calmBefore, calmAfter, wasAway: res.wasAway });
+      renderDashboard({ durationMs, cyclesDone, isCycleMode, calmBefore, calmAfter, wasAway: res.wasAway, pts: res.pts });
       pendingCalmBefore = null;
       el.srAnnounce.textContent = 'Session complete';
       showScreen('end');
@@ -1363,6 +1366,20 @@
     el.endSessions.textContent = String(progress.history.length);
     el.endLifetime.textContent = formatDuration(lifetimeMs());
 
+    // Points earned this session — gentle reveal + a soft glow on the dose ring.
+    if (el.endEarned && el.endEarnedNum && d.pts != null) {
+      el.endEarnedNum.textContent = '+' + d.pts;
+      el.endEarned.hidden = false;
+      el.endEarned.classList.remove('is-in');
+      if (el.dose) el.dose.classList.remove('is-celebrate');
+      // Restart the CSS animation on each session (force reflow, then re-add).
+      void el.endEarned.offsetWidth;
+      el.endEarned.classList.add('is-in');
+      if (el.dose) el.dose.classList.add('is-celebrate');
+    } else if (el.endEarned) {
+      el.endEarned.hidden = true;
+    }
+
     // Effective-dose ring: real minutes today vs the 5–10 min research range.
     // Floor the shown figure so we never over-claim reaching the range.
     const todayMin = minutesToday();
@@ -1548,7 +1565,7 @@
     el.sumCalm.textContent = delta ? `${delta.avg >= 0 ? '+' : ''}${Math.round(delta.avg * 10) / 10}` : '—';
     el.sumTrend.textContent = trendLine(weekStats());
     if (delta) {
-      el.sumCalmNote.textContent = 'Avg calm is your own 1–5 self-rating (after − before) — not a measurement.';
+      el.sumCalmNote.textContent = '“Calmer after” is your own 1–5 self-rating (after − before) — not a measurement.';
       el.sumCalmNote.hidden = false;
     } else {
       el.sumCalmNote.hidden = true;
@@ -1596,16 +1613,78 @@
         rg.addColorStop(0, 'rgba(60,120,168,0.32)'); rg.addColorStop(1, 'rgba(60,120,168,0)');
         g.fillStyle = rg; g.fillRect(0, 0, W, H);
 
-        // decorative orb (gold ring + blue fill) — echoes the app
+        // Glowing blue liquid orb — mirrors the in-app orb (glow halo, blue
+        // gradient with a bright meniscus, inner bloom, sparkles, gold ring).
         const oy = H * 0.235, or = 150;
+        const fillLvl = 0.62;                          // a pleasing, mostly-full level
+        const surfaceY = oy + or - fillLvl * 2 * or;   // 0 → bottom, 1 → top
+        const N = 48;
+        const amp = or * 0.045;
+        const waveY = (x) => {
+          const u = (x - cx) / or; // -1..+1
+          return surfaceY
+            - amp * Math.sin(u * Math.PI * 0.5 + 0.6)
+            - amp * 0.5 * Math.cos(u * Math.PI);
+        };
+
+        // Outer glow halo behind the orb.
+        const halo = g.createRadialGradient(cx, oy, or * 0.25, cx, oy, or * 1.9);
+        halo.addColorStop(0, 'rgba(96,162,212,0.40)');
+        halo.addColorStop(0.55, 'rgba(96,162,212,0.12)');
+        halo.addColorStop(1, 'rgba(96,162,212,0)');
+        g.fillStyle = halo; g.fillRect(cx - or * 1.9, oy - or * 1.9, or * 3.8, or * 3.8);
+
         g.save();
-        g.beginPath(); g.arc(cx, oy, or - 10, 0, Math.PI * 2); g.clip();
-        const lg = g.createLinearGradient(0, oy - or, 0, oy + or);
-        lg.addColorStop(0, 'rgba(80,130,180,0.30)'); lg.addColorStop(1, 'rgba(40,90,140,0.92)');
-        g.fillStyle = lg; g.fillRect(cx - or, oy - or * 0.1, 2 * or, or + or * 0.1);
+        g.beginPath(); g.arc(cx, oy, or - 5, 0, Math.PI * 2); g.clip();
+
+        // Faint empty interior so the sphere reads above the waterline.
+        const inside = g.createRadialGradient(cx, oy - or * 0.25, or * 0.15, cx, oy, or);
+        inside.addColorStop(0, 'rgba(48,70,98,0.55)');
+        inside.addColorStop(1, 'rgba(16,26,40,0.80)');
+        g.fillStyle = inside; g.fillRect(cx - or, oy - or, 2 * or, 2 * or);
+
+        // Liquid body with a gentle wavy surface.
+        g.beginPath();
+        g.moveTo(cx - or, oy + or + 2);
+        g.lineTo(cx - or, waveY(cx - or));
+        for (let i = 0; i <= N; i++) { const x = cx - or + (2 * or) * (i / N); g.lineTo(x, waveY(x)); }
+        g.lineTo(cx + or, oy + or + 2);
+        g.closePath();
+        const lg = g.createLinearGradient(0, surfaceY - or * 0.25, 0, oy + or);
+        lg.addColorStop(0, 'rgba(126,186,228,0.97)');   // bright near the surface
+        lg.addColorStop(0.5, 'rgba(58,120,168,0.97)');
+        lg.addColorStop(1, 'rgba(28,68,108,0.98)');     // deep at the bottom
+        g.fillStyle = lg; g.fill();
+
+        // Additive inner bloom.
+        g.globalCompositeOperation = 'lighter';
+        const bloom = g.createRadialGradient(cx, surfaceY + or * 0.15, or * 0.05, cx, surfaceY + or * 0.15, or * 1.05);
+        bloom.addColorStop(0, 'rgba(120,190,235,0.22)');
+        bloom.addColorStop(1, 'rgba(120,190,235,0)');
+        g.fillStyle = bloom; g.fillRect(cx - or, oy - or, 2 * or, 2 * or);
+
+        // Sparkle dots suspended in the liquid.
+        g.fillStyle = 'rgba(214,236,252,0.9)';
+        const dots = [[-0.34, 0.40], [0.30, 0.58], [-0.08, 0.74], [0.44, 0.36], [0.14, 0.50], [-0.5, 0.66]];
+        for (const [nx, nh] of dots) {
+          const px = cx + nx * or * 0.85;
+          const py = oy + or - nh * 2 * or;
+          if (py > waveY(px) + 4) { g.beginPath(); g.arc(px, py, 3.2, 0, Math.PI * 2); g.fill(); }
+        }
+        g.globalCompositeOperation = 'source-over';
+
+        // Bright meniscus highlight along the surface.
+        g.beginPath();
+        for (let i = 0; i <= N; i++) { const x = cx - or + (2 * or) * (i / N); if (i === 0) g.moveTo(x, waveY(x)); else g.lineTo(x, waveY(x)); }
+        g.strokeStyle = 'rgba(188,226,250,0.65)'; g.lineWidth = 4; g.stroke();
         g.restore();
+
+        // Gold ring with a soft glow.
+        g.save();
         g.beginPath(); g.arc(cx, oy, or, 0, Math.PI * 2);
+        g.shadowColor = 'rgba(239,212,154,0.5)'; g.shadowBlur = 22;
         g.strokeStyle = '#efd49a'; g.lineWidth = 8; g.stroke();
+        g.restore();
 
         const name = (profile.name || '').trim();
         g.fillStyle = '#eaf1f6'; g.font = '600 66px ' + FT;
@@ -1620,7 +1699,7 @@
           ['Practice', formatLong(lifetimeMs())],
           ['Rhythm', progress.streak.current + ' day' + (progress.streak.current === 1 ? '' : 's')],
           ['Points', String(progress.points)],
-          ['Avg calm', delta ? ((delta.avg >= 0 ? '+' : '') + (Math.round(delta.avg * 10) / 10)) : '—'],
+          ['Calmer after', delta ? ((delta.avg >= 0 ? '+' : '') + (Math.round(delta.avg * 10) / 10)) : '—'],
           ['This week', String(wk.thisWeek.sessions)],
         ];
         const colX = [W * 0.30, W * 0.70];

@@ -40,14 +40,17 @@ export function init(cnv) {
 
   scene = new THREE.Scene();
   camera = new THREE.PerspectiveCamera(34, 1, 0.1, 20);
-  camera.position.set(0, 0, 3.4);
+  // Raised + looking down ~18° so we see INTO the orb — the liquid's surface
+  // reads as an ellipse (a real "bowl of water"), not a flat 2D line.
+  camera.position.set(0, 1.05, 3.25);
+  camera.lookAt(0, 0, 0);
 
   const liquidGeo = new THREE.SphereGeometry(R, 64, 48);
 
   // ---------- Liquid ----------
   const liquidMat = new THREE.ShaderMaterial({
     uniforms: { uTime: shared.uTime, uFill: shared.uFill, uRadius: shared.uRadius },
-    transparent: true, depthWrite: false, side: THREE.FrontSide,
+    transparent: true, depthWrite: true, side: THREE.DoubleSide,
     vertexShader: [
       'varying vec3 vLocal; varying vec3 vN; varying vec3 vView;',
       'void main(){',
@@ -79,11 +82,61 @@ export function init(cnv) {
       '  col += sheen*0.22;',
       '  float facing = clamp(dot(vN, vView), 0.0, 1.0);',
       '  col += facing*0.10*vec3(0.5,0.75,1.0);',         // soft inner glow toward the viewer
+      '  float spec = pow(max(0.0, dot(normalize(vN), normalize(vec3(0.25,0.7,0.65)))), 12.0);',
+      '  col += spec*0.18;',                              // soft glossy highlight → reads as a 3D ball
       '  gl_FragColor = vec4(col, 0.85);',
       '}'
     ].join('\n'),
   });
-  scene.add(new THREE.Mesh(liquidGeo, liquidMat));
+  const liquidMesh = new THREE.Mesh(liquidGeo, liquidMat);
+  liquidMesh.renderOrder = 0;
+  scene.add(liquidMesh);
+
+  // ---------- Liquid SURFACE: the elliptical top you look down onto ----------
+  // A horizontal plane at the waterline, displaced by the same wave field and
+  // clipped to the sphere's cross-section. Seen from the tilted camera it reads
+  // as an ellipse — the strongest 3D cue.
+  const surfaceMat = new THREE.ShaderMaterial({
+    uniforms: { uTime: shared.uTime, uFill: shared.uFill, uRadius: shared.uRadius },
+    transparent: true, depthWrite: false, depthTest: true, side: THREE.DoubleSide,
+    vertexShader: [
+      'uniform float uTime, uFill, uRadius;',
+      'varying vec2 vXZ;',
+      'float waveH(vec2 xz){',
+      '  float t = uTime; float w = 0.0;',
+      '  w += 0.060*sin(xz.x*1.6 + t*0.50);',
+      '  w += 0.050*sin(xz.y*1.7 - t*0.42);',
+      '  w += 0.040*sin((xz.x+xz.y)*1.25 + t*0.66);',
+      '  w += 0.030*sin(xz.x*2.6 - t*0.80);',
+      '  w += 0.060*(xz.x*sin(t*0.30) + xz.y*cos(t*0.30));',
+      '  return w*uRadius;',
+      '}',
+      'void main(){',
+      '  vec2 xz = position.xy * uRadius;',                // plane [-1,1] → [-R,R] as (x,z)
+      '  float surf0 = -uRadius + 2.0*uRadius*uFill;',
+      '  float y = surf0 + waveH(xz);',
+      '  vXZ = xz;',
+      '  gl_Position = projectionMatrix * modelViewMatrix * vec4(xz.x, y, xz.y, 1.0);',
+      '}'
+    ].join('\n'),
+    fragmentShader: [
+      'uniform float uFill, uRadius;',
+      'varying vec2 vXZ;',
+      'void main(){',
+      '  float surf0 = -uRadius + 2.0*uRadius*uFill;',
+      '  float rCross2 = max(0.0001, uRadius*uRadius - surf0*surf0);', // sphere cross-section at the waterline
+      '  float d2 = dot(vXZ, vXZ);',
+      '  if (d2 > rCross2) discard;',
+      '  float edge = clamp(d2 / rCross2, 0.0, 1.0);',
+      '  vec3 col = mix(vec3(0.60,0.82,1.0), vec3(0.30,0.58,0.86), edge*0.7);',
+      '  float rimFade = smoothstep(1.0, 0.82, edge);',    // soft meeting with the wall
+      '  gl_FragColor = vec4(col, 0.9*rimFade);',
+      '}'
+    ].join('\n'),
+  });
+  const surfaceMesh = new THREE.Mesh(new THREE.PlaneGeometry(2, 2, 48, 48), surfaceMat);
+  surfaceMesh.renderOrder = 1;
+  scene.add(surfaceMesh);
 
   // ---------- Glass shell (faint fresnel rim) ----------
   const glassMat = new THREE.ShaderMaterial({
@@ -105,7 +158,9 @@ export function init(cnv) {
       '}'
     ].join('\n'),
   });
-  scene.add(new THREE.Mesh(new THREE.SphereGeometry(1.0, 48, 32), glassMat));
+  const glassMesh = new THREE.Mesh(new THREE.SphereGeometry(1.0, 48, 32), glassMat);
+  glassMesh.renderOrder = 2;
+  scene.add(glassMesh);
 
   // ---------- Magical particles ----------
   const N = 150;
@@ -158,7 +213,9 @@ export function init(cnv) {
       '}'
     ].join('\n'),
   });
-  scene.add(new THREE.Points(pgeo, pMat));
+  const pts = new THREE.Points(pgeo, pMat);
+  pts.renderOrder = 3;
+  scene.add(pts);
 }
 
 // Driven by the app's render loop (single timer). Returns nothing; safe to call

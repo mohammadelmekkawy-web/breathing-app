@@ -1105,8 +1105,8 @@
 
     // Faint empty interior so the sphere reads even when empty.
     const bg = ctx.createRadialGradient(cx, cy - R * 0.25, R * 0.15, cx, cy, R);
-    bg.addColorStop(0, 'rgba(42,62,88,0.30)');
-    bg.addColorStop(1, 'rgba(12,20,30,0.55)');
+    bg.addColorStop(0, 'rgba(48,70,98,0.55)');   // more present so the empty vessel
+    bg.addColorStop(1, 'rgba(16,26,40,0.78)');   // reads full-size up to the ring (no gap)
     ctx.fillStyle = bg; ctx.fillRect(cx - R, cy - R, 2 * R, 2 * R);
 
     if (fill > 0.005) {
@@ -1176,7 +1176,7 @@
     // Subtle sphere edge — the gold progress ring (drawn over this) is the
     // prominent boundary now, so keep the orb's own rim very gentle.
     ctx.beginPath(); ctx.arc(cx, cy, R, 0, Math.PI * 2);
-    ctx.strokeStyle = 'rgba(150,200,235,0.22)';
+    ctx.strokeStyle = 'rgba(150,200,235,0.30)';
     ctx.lineWidth = Math.max(1, dpr);
     if (!reduced) { ctx.shadowColor = 'rgba(120,182,226,0.4)'; ctx.shadowBlur = dpr * 6; }
     ctx.stroke();

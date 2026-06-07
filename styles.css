@@ -530,6 +530,47 @@ body {
 .beat { opacity: 0; animation: beatIn 0.7s ease forwards; animation-delay: calc(var(--beat, 1) * 0.45s); }
 @keyframes beatIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
 
+/* ===================== HOW IT WORKS (beginner walkthrough) ===================== */
+.screen--learn { justify-content: center; align-items: center; text-align: center; gap: var(--s2); padding-block: var(--s4); }
+.learn { display: flex; flex-direction: column; align-items: center; max-width: 26rem; width: 100%; }
+.learn__title { font-size: clamp(1.8rem, 7vw, 2.4rem); margin: 0 0 var(--s1); font-weight: 600; }
+.learn__sub { color: var(--text-dim); margin: 0 0 var(--s3); }
+.learn__scene { display: flex; align-items: center; justify-content: center; gap: var(--s2); margin: var(--s1) 0 var(--s2); color: var(--accent); }
+.learn-orb { width: clamp(6rem, 30vw, 8.5rem); height: clamp(6rem, 30vw, 8.5rem); flex: none; filter: drop-shadow(0 0 16px rgba(127,182,207,0.35)); }
+.learn-face { width: clamp(5.5rem, 28vw, 8rem); height: clamp(6.2rem, 32vw, 9rem); flex: none; }
+.learn__phase { font-size: 1.5rem; font-weight: 700; color: var(--text); margin: var(--s1) 0 0; min-height: 1.5em; }
+.learn__cue { color: var(--text-dim); margin: 2px 0 var(--s3); min-height: 1.2em; }
+.learn__steps { list-style: none; display: flex; gap: var(--s1); padding: 0; margin: 0 0 var(--s3); flex-wrap: wrap; justify-content: center; }
+.learn__steps li { display: flex; align-items: center; gap: 6px; font-size: 0.9rem; color: var(--text-dim); border: 1px solid var(--line); border-radius: 999px; padding: 6px 12px; transition: background .3s ease, color .3s ease, border-color .3s ease; }
+.learn__step-n { display: inline-grid; place-items: center; width: 1.3rem; height: 1.3rem; border-radius: 50%; background: var(--surface-2); font-size: 0.78rem; font-weight: 700; }
+.learn__steps li.is-active { color: var(--primary-ink); background: var(--accent); border-color: var(--accent); }
+.learn__steps li.is-active .learn__step-n { background: rgba(255,255,255,0.3); color: var(--primary-ink); }
+.learn__static { text-align: left; color: var(--text); font-size: 0.95rem; line-height: 1.5; margin: 0 0 var(--s3); }
+.learn__static p { margin: 0 0 var(--s1); }
+.screen--learn .btn--primary { min-width: 12rem; }
+.btn--how { margin: var(--s1) auto 0; font-size: 0.9rem; min-height: auto; padding: 8px 14px; color: var(--accent); }
+
+/* Air-stream particles (driven by the scene's phase class) */
+.learn-air circle { opacity: 0; }
+@media (prefers-reduced-motion: no-preference) {
+  .learn__scene.is-inhale .learn-air--in circle { animation: air-in 1.6s ease-in-out infinite; }
+  .learn__scene.is-inhale .learn-air--in circle:nth-child(2) { animation-delay: 0.25s; }
+  .learn__scene.is-inhale .learn-air--in circle:nth-child(3) { animation-delay: 0.5s; }
+  .learn__scene.is-exhale .learn-air--out circle { animation: air-out 1.6s ease-in-out infinite; }
+  .learn__scene.is-exhale .learn-air--out circle:nth-child(2) { animation-delay: 0.25s; }
+  .learn__scene.is-exhale .learn-air--out circle:nth-child(3) { animation-delay: 0.5s; }
+}
+@keyframes air-in {
+  0% { opacity: 0; transform: translateX(16px); }
+  45% { opacity: 0.9; }
+  100% { opacity: 0; transform: translateX(-10px); }
+}
+@keyframes air-out {
+  0% { opacity: 0; transform: translate(0, 0); }
+  45% { opacity: 0.9; }
+  100% { opacity: 0; transform: translate(16px, 7px); }
+}
+
 /* ===================== ONBOARDING ===================== */
 .screen--onboarding { justify-content: center; gap: var(--s3); padding-block: var(--s4); }
 .text-input {

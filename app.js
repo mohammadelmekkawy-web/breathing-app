@@ -318,6 +318,18 @@
     screenWelcome: $('screen-welcome'),
     btnWelcomeStart: $('btn-welcome-start'),
 
+    // How it works (beginner walkthrough)
+    screenLearn: $('screen-learn'),
+    learnScene: $('learn-scene'),
+    learnOrbFill: $('learn-orb-fill'),
+    learnChestFill: $('learn-chest-fill'),
+    learnPhase: $('learn-phase'),
+    learnCue: $('learn-cue'),
+    learnSteps: $('learn-steps'),
+    learnStatic: $('learn-static'),
+    btnLearnContinue: $('btn-learn-continue'),
+    btnHowItWorks: $('btn-how-it-works'),
+
     // Onboarding
     screenOnboarding: $('screen-onboarding'),
     onboardForm: $('onboard-form'),
@@ -1194,6 +1206,7 @@
   function showScreen(name) {
     const map = {
       welcome: el.screenWelcome,
+      learn: el.screenLearn,
       onboarding: el.screenOnboarding,
       start: el.screenStart,
       session: el.screenSession,
@@ -1203,9 +1216,12 @@
     Object.entries(map).forEach(([k, node]) => { node.hidden = (k !== name); });
     // Reflect any in-session / profile changes back onto the start screen controls.
     if (name === 'start') renderStart();
+    // The walkthrough animation only runs while its screen is visible.
+    if (name === 'learn') startLearnDemo(); else stopLearnDemo();
     // Move focus to a sensible target (keyboard / SR users)
     const focusTarget = {
       welcome: el.btnWelcomeStart,
+      learn: el.btnLearnContinue,
       onboarding: el.onboardTitle,
       start: el.btnStart,
       session: el.btnStop,   // always-reachable control
@@ -1295,6 +1311,85 @@
   function armWelcomeChime() {
     // Chime plays on the first touch of the welcome screen (a valid gesture).
     el.screenWelcome.addEventListener('pointerdown', () => playChime(), { once: true });
+  }
+
+  /* =======================================================
+     "How it works" walkthrough — a looping in/hold/out demo so a
+     first-timer can see (and breathe along with) one full breath.
+     The orb + the figure's chest fill in sync; air streams flow in
+     the nose and out the mouth. Self-contained loop, separate from the
+     session engine. Reduced-motion shows a static text version.
+     ======================================================= */
+  const learn = { raf: 0, t0: 0, returnTo: 'start', lastPhase: '' };
+  const LEARN_PHASES = { in: 4000, hold: 4000, out: 4000 }; // 12s loop, gentle box-style
+  const easeInOut = (p) => 0.5 - 0.5 * Math.cos(Math.PI * clamp(p, 0, 1));
+
+  function setLearnFill(fill) {
+    // Orb (viewBox 120): liquid rises from the bottom.
+    el.learnOrbFill.setAttribute('y', (120 - fill * 120).toFixed(1));
+    el.learnOrbFill.setAttribute('height', (fill * 120).toFixed(1));
+    // Chest/lungs (viewBox 160): fill clipped to the torso shape.
+    el.learnChestFill.setAttribute('y', (160 - fill * 66).toFixed(1));
+    el.learnChestFill.setAttribute('height', (fill * 66 + 4).toFixed(1));
+  }
+
+  function setLearnPhase(phase, label, cue) {
+    if (phase === learn.lastPhase) return;
+    learn.lastPhase = phase;
+    el.learnScene.classList.remove('is-inhale', 'is-hold', 'is-exhale');
+    el.learnScene.classList.add('is-' + phase);
+    el.learnPhase.textContent = label;
+    el.learnCue.textContent = cue;
+    el.learnSteps.querySelectorAll('li').forEach((li) => {
+      li.classList.toggle('is-active', li.getAttribute('data-phase') === phaseKey(phase));
+    });
+  }
+  // map animation phase -> step list data-phase
+  function phaseKey(p) { return p === 'inhale' ? 'inhale' : p === 'exhale' ? 'exhale' : 'hold'; }
+
+  function learnTick(ts) {
+    if (!learn.t0) learn.t0 = ts;
+    const total = LEARN_PHASES.in + LEARN_PHASES.hold + LEARN_PHASES.out;
+    const t = (ts - learn.t0) % total;
+    if (t < LEARN_PHASES.in) {
+      setLearnPhase('inhale', 'Breathe in', 'slowly, through your nose');
+      setLearnFill(easeInOut(t / LEARN_PHASES.in));
+    } else if (t < LEARN_PHASES.in + LEARN_PHASES.hold) {
+      setLearnPhase('hold', 'Hold', 'keep it soft and easy');
+      setLearnFill(1);
+    } else {
+      setLearnPhase('exhale', 'Breathe out', 'slowly, through your mouth');
+      setLearnFill(1 - easeInOut((t - LEARN_PHASES.in - LEARN_PHASES.hold) / LEARN_PHASES.out));
+    }
+    learn.raf = requestAnimationFrame(learnTick);
+  }
+
+  function startLearnDemo() {
+    stopLearnDemo();
+    learn.lastPhase = '';
+    if (prefersReducedMotion()) {
+      // No looping animation — show a clear, static description instead.
+      el.learnStatic.hidden = false;
+      el.learnPhase.textContent = 'In · hold · out';
+      el.learnCue.textContent = 'one calm breath';
+      setLearnFill(0.6);
+      el.learnScene.classList.remove('is-inhale', 'is-hold', 'is-exhale');
+      return;
+    }
+    el.learnStatic.hidden = true;
+    learn.t0 = 0;
+    learn.raf = requestAnimationFrame(learnTick);
+  }
+
+  function stopLearnDemo() {
+    if (learn.raf) { cancelAnimationFrame(learn.raf); learn.raf = 0; }
+  }
+
+  // Open the walkthrough, remembering where to go when the user is done.
+  function showLearn(returnTo) {
+    learn.returnTo = returnTo || 'start';
+    el.btnLearnContinue.textContent = (learn.returnTo === 'onboarding') ? 'Continue' : 'Got it';
+    showScreen('learn');
   }
 
   function updateGreeting() {
@@ -1849,9 +1944,15 @@
   // ----- Welcome / onboarding -----
   el.btnWelcomeStart.addEventListener('click', () => {
     profile.welcomed = true; saveProfile();
-    renderOnboarding();
-    showScreen('onboarding');
+    showLearn('onboarding'); // teach the breath first, then collect profile
   });
+  // Walkthrough "Continue": go on to wherever we came from.
+  el.btnLearnContinue.addEventListener('click', () => {
+    if (learn.returnTo === 'onboarding') { renderOnboarding(); showScreen('onboarding'); }
+    else showScreen(learn.returnTo || 'start');
+  });
+  // Home-screen entry point (for people who skipped or are returning).
+  el.btnHowItWorks.addEventListener('click', () => showLearn('start'));
   el.onboardForm.addEventListener('submit', (e) => { e.preventDefault(); finishOnboarding(false); });
   el.btnOnboardSkip.addEventListener('click', () => finishOnboarding(true));
   // Age: single-select (one range).

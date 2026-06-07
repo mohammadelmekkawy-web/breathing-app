@@ -85,7 +85,7 @@
     haptic: true,
     theme: 'dark',      // 'dark' | 'light'
     animationStyle: 'liquid',  // 'liquid' (2D orb) or 'liquid3d' (3D orb)
-    bgTrack: 'off',     // background music: 'off' | 'leberch' | 'starostin'
+    bgTrack: 'leberch', // ambient music (on by default): 'off' | 'leberch' | 'starostin'
     bgVolume: 0.5,      // background music volume (0..1)
     calmCheck: true,    // optional before/after calm self-rating
   };
@@ -119,6 +119,17 @@
 
   const clamp = (n, lo, hi) => Math.max(lo, Math.min(hi, n));
   const settings = loadSettings();
+
+  // One-time migration: ambient music is now ON by default. Returning users carry
+  // the old 'off' default, so flip it up once. A flag makes this run a single time,
+  // so anyone who later deliberately turns music off in the gear keeps it off.
+  try {
+    const MIGRATED_KEY = 'breathe.ambientOnByDefault.v1';
+    if (!localStorage.getItem(MIGRATED_KEY)) {
+      if (settings.bgTrack === 'off') { settings.bgTrack = DEFAULTS.bgTrack; saveSettings(); }
+      localStorage.setItem(MIGRATED_KEY, '1');
+    }
+  } catch {}
 
   /* =======================================================
      LOCAL USER DATA — profile + progress (stays on device)
@@ -269,8 +280,12 @@
     optHaptic: $('opt-haptic'),
     optTheme: $('opt-theme'),
     bgSelect: $('bg-select'),
-    bgPreview: $('bg-preview'),
     bgVolume: $('bg-volume'),
+
+    // Global settings gear (every screen)
+    btnGear: $('btn-gear'),
+    settingsOverlay: $('settings-overlay'),
+    btnSettingsDone: $('btn-settings-done'),
 
     startForm: $('start-form'),
     btnStart: $('btn-start'),
@@ -282,15 +297,6 @@
     ringFill: document.querySelector('.ring__fill'),
     btnPause: $('btn-pause'),
     btnStop: $('btn-stop'),
-
-    // In-session audio controls
-    btnMute: $('btn-mute'),
-    btnAudioPanel: $('btn-audio-panel'),
-    audioPanel: $('audio-panel'),
-    sessOptSound: $('sess-opt-sound'),
-    sessBgSelect: $('sess-bg-select'),
-    sessBgVolume: $('sess-bg-volume'),
-    sessVisual: $('sess-visual'),
 
     endTime: $('end-time'),
     endCount: $('end-count'),
@@ -429,12 +435,12 @@
     setSwitch(el.optCalm, settings.calmCheck);
     setSwitch(el.optTheme, settings.theme === 'light');
 
-    // Background music: selection + volume + preview button
+    // Ambient music: selection + volume (lives in the global gear)
     el.bgSelect.querySelectorAll('.segmented__btn').forEach((b) => {
       b.setAttribute('aria-checked', b.getAttribute('data-track') === settings.bgTrack ? 'true' : 'false');
     });
     el.bgVolume.value = String(Math.round(settings.bgVolume * 100));
-    updatePreviewBtn();
+    el.bgVolume.disabled = (settings.bgTrack === 'off');
 
     updateGreeting();
   }
@@ -476,26 +482,23 @@
   el.optSound.addEventListener('click', () => { settings.sound = !settings.sound; saveSettings(); renderStart(); });
   el.optHaptic.addEventListener('click', () => { settings.haptic = !settings.haptic; saveSettings(); renderStart(); });
 
-  // Background sound: choose a track (changing selection stops any preview).
+  // Ambient music: choose a track — crossfades the always-on music live.
   el.bgSelect.querySelectorAll('.segmented__btn').forEach((btn) => {
     btn.addEventListener('click', () => {
-      stopPreview();
-      settings.bgTrack = btn.getAttribute('data-track');
+      const track = btn.getAttribute('data-track');
+      if (track === settings.bgTrack) return;
+      settings.bgTrack = track;
       saveSettings();
       renderStart();
+      initAudio();            // unlock on this gesture if not already
+      applyTrackChange(track); // start / crossfade / stop the continuous music
     });
   });
-  el.bgPreview.addEventListener('click', () => { previewing ? stopPreview() : startPreview(); });
   el.bgVolume.addEventListener('input', () => {
     settings.bgVolume = clamp(parseInt(el.bgVolume.value, 10) / 100 || 0, 0, 1);
     saveSettings();
-    if (music.master && music.playing) musicFade(musicTarget(), 0.2); // live-adjust preview/session
+    if (music.master && music.playing) musicFade(musicTarget(), 0.2); // live-adjust
   });
-  // Stop preview when the Options disclosure is collapsed (leaving settings).
-  const bgOptionsDetails = el.bgSelect.closest('details');
-  if (bgOptionsDetails) {
-    bgOptionsDetails.addEventListener('toggle', () => { if (!bgOptionsDetails.open) stopPreview(); });
-  }
   el.optVisual.addEventListener('change', () => {
     settings.animationStyle = (el.optVisual.value === 'liquid3d') ? 'liquid3d' : 'liquid';
     saveSettings();
@@ -569,12 +572,12 @@
   }
 
   /* =======================================================
-     BACKGROUND MUSIC — looping ambient MP3 tracks (user-chosen)
+     AMBIENT MUSIC — always-on looping MP3 (user-chosen track)
+     Plays continuously across the whole app, not tied to a session.
      Streamed via HTMLAudio (low memory) and routed through Web Audio
-     gain nodes so volume/mute work on iOS (where element.volume is
+     gain nodes so volume works on iOS (where element.volume is
      read-only). Looped seamlessly by crossfading between two players
-     near the loop seam, with gentle master fade-in/out. Used for both
-     the in-settings preview and in-session playback (never overlapping).
+     near the loop seam, with a gentle master fade-in/out.
      ======================================================= */
   const TRACKS = [
     { id: 'leberch',   name: 'Meditation — Leberch',   src: 'audio/meditation-leberch.mp3' },
@@ -582,8 +585,8 @@
   ];
   function trackById(id) { return TRACKS.find((t) => t.id === id) || null; }
 
-  // Master mute is session-transient (resets each session) — it silences
-  // everything instantly without changing the user's preferences.
+  // Vestigial mute flag — kept so playTone()/musicTarget() guards still compile.
+  // Ambient music is global and never force-muted; it stays permanently false.
   let muted = false;
 
   const XFADE = 2.5; // seconds — crossfade length at the loop seam
@@ -718,26 +721,6 @@
     }, (sec + 0.3) * 1000);
   }
 
-  // During-session pause/resume: fade out but keep the player ready to resume.
-  function musicPauseForSession() {
-    if (!music.master) return;
-    music.playing = false;
-    clearInterval(music.monitorId); music.monitorId = 0;
-    musicFade(0, 2.0);
-    setTimeout(() => {
-      if (!music.playing) { const a = music.els[music.cur]; if (a) { try { a.pause(); } catch {} } }
-    }, 2100);
-  }
-  function musicResumeForSession() {
-    if (!music.master || !audioCtx) return;
-    const a = music.els[music.cur];
-    if (a) { const p = a.play(); if (p && p.catch) p.catch(() => {}); }
-    music.playing = true;
-    clearInterval(music.monitorId);
-    music.monitorId = setInterval(musicMonitor, 300);
-    musicFade(musicTarget(), 1.5);
-  }
-
   // Crossfade from the currently-playing track to a different one: detach the
   // old graph and fade it out while the new one fades in (overlapping, no gap).
   function musicCrossfadeTo(newTrackId) {
@@ -763,66 +746,27 @@
     musicStart(newTrackId, rm); // builds + fades the new track in
   }
 
-  // In-session ambient track change (from the audio panel). Crossfades live,
-  // never interrupts the breathing session. Persists the choice.
-  function selectSessionTrack(trackId) {
-    settings.bgTrack = trackId;
-    saveSettings();
-    if (trackId === 'off') {
-      music.wanted = false;
-      musicStop(1.2);
-    } else {
-      music.wanted = true;
-      if (music.master && music.playing && music.trackId !== trackId) {
-        musicCrossfadeTo(trackId);            // smooth swap while playing
-      } else if (!(music.master && music.trackId === trackId)) {
-        musicStart(trackId, true);            // wasn't playing → start it
-        if (session.paused) musicPauseForSession();
-      }
-    }
-    updateAudioButtons();
-  }
-
-  // Master mute — silences cue tones (via the playTone guard) and smoothly fades
-  // the background music, without stopping the session or losing preferences.
-  function setMuted(m) {
-    muted = m;
-    if (music.master && music.playing) musicFade(musicTarget(), 0.6); // gentle, never a hard cut
-    updateAudioButtons();
-  }
-
-  // Sync the in-session control visuals with current settings + mute state.
-  function updateAudioButtons() {
-    el.btnMute.setAttribute('aria-pressed', muted ? 'true' : 'false');
-    el.btnMute.setAttribute('aria-label', muted ? 'Unmute all sound' : 'Mute all sound');
-    setSwitch(el.sessOptSound, settings.sound);
-    el.sessBgSelect.value = settings.bgTrack;
-    el.sessBgVolume.value = String(Math.round(settings.bgVolume * 100));
-    el.sessBgVolume.disabled = (settings.bgTrack === 'off');
-    el.sessVisual.querySelectorAll('.segmented__btn').forEach((b) => {
-      b.setAttribute('aria-checked', b.getAttribute('data-style') === settings.animationStyle ? 'true' : 'false');
-    });
-  }
-
-  // ----- In-settings track preview (play/stop a short audition) -----
-  let previewing = false;
-  function updatePreviewBtn() {
-    const off = settings.bgTrack === 'off';
-    el.bgPreview.disabled = off;
-    el.bgPreview.textContent = previewing ? '⏹ Stop preview' : '▶ Preview';
-    el.bgPreview.setAttribute('aria-pressed', previewing ? 'true' : 'false');
-  }
-  function startPreview() {
+  // ----- Always-on ambient music -----
+  // Music plays continuously across the WHOLE app (welcome → onboarding → home →
+  // session → end), independent of any breathing session. It starts on the user's
+  // first gesture (autoplay policies block audio before interaction) and only stops
+  // when the user chooses "Off" in the gear. Pausing a session does NOT pause music.
+  function startMusic() {
     if (settings.bgTrack === 'off') return;
-    musicStart(settings.bgTrack, false); // preview ignores session mute
-    previewing = true;
-    updatePreviewBtn();
+    if (!ensureAudioCtx()) return;
+    if (music.playing && music.trackId === settings.bgTrack) return; // already going
+    musicStart(settings.bgTrack, false);
   }
-  function stopPreview() {
-    if (!previewing) return;
-    previewing = false;
-    musicStop(0.6);
-    updatePreviewBtn();
+
+  // React to a track change from the gear: start / crossfade / stop the music live.
+  function applyTrackChange(trackId) {
+    if (trackId === 'off') { musicStop(1.2); return; }
+    if (!ensureAudioCtx()) return;
+    if (music.master && music.playing && music.trackId !== trackId) {
+      musicCrossfadeTo(trackId);              // smooth swap while playing
+    } else if (!(music.master && music.trackId === trackId)) {
+      musicStart(trackId, false);             // wasn't playing → start it
+    }
   }
 
   /* ---------- Haptics ---------- */
@@ -911,17 +855,10 @@
     enterPhase(0, /*announce*/ true);
     acquireWakeLock();
 
-    // In-session audio controls start fresh: unmuted, panel closed.
-    muted = false;
-    music.wanted = (settings.bgTrack !== 'off');
-    el.audioPanel.hidden = true;
-    el.btnAudioPanel.setAttribute('aria-expanded', 'false');
-    previewing = false; // any settings preview is superseded by the session
-    updateAudioButtons();
-
-    // Start the chosen background track (gentle fade-in), or ensure silence.
-    if (music.wanted) musicStart(settings.bgTrack, true);
-    else musicHardStop();
+    // Ambient music is global and already playing across the app — the session
+    // doesn't start, stop, or own it. Just make sure it's going (e.g. if the
+    // first gesture was this very tap).
+    startMusic();
 
     el.btnPause.textContent = 'Pause';
     el.btnPause.setAttribute('aria-label', 'Pause session');
@@ -1298,14 +1235,13 @@
       el.phaseLabel.dataset.prev = el.phaseLabel.textContent;
       el.srAnnounce.textContent = 'Paused';
       releaseWakeLock();
-      if (music.wanted) musicPauseForSession();
+      // Ambient music keeps playing through a pause — it's global, not session-bound.
     } else {
       el.btnPause.textContent = 'Pause';
       el.btnPause.setAttribute('aria-label', 'Pause session');
       el.srAnnounce.textContent = `Resumed. ${session.phases[session.phaseIndex].label}`;
       acquireWakeLock();
       session.lastTs = 0; // avoid a dt spike on resume
-      if (music.wanted) musicResumeForSession();
     }
   }
 
@@ -1347,7 +1283,7 @@
     if (session.rafId) cancelAnimationFrame(session.rafId);
     session.rafId = 0;
     releaseWakeLock();
-    musicStop(2.0);     // gentle ~2s fade-out, then releases the players
+    // Ambient music is global — it keeps playing into the end/summary screens.
     // reset circle to resting visual
     el.breath.style.transform = '';
     el.breath.style.opacity = '';
@@ -1359,7 +1295,6 @@
      Screen switching + focus management
      ======================================================= */
   function showScreen(name) {
-    stopPreview(); // never let a settings preview bleed across screens
     const map = {
       welcome: el.screenWelcome,
       onboarding: el.screenOnboarding,
@@ -1509,8 +1444,8 @@
   }
 
   function beginSessionFlow() {
-    stopPreview();   // a real session supersedes any settings preview
     initAudio();     // unlock audio inside the user gesture
+    startMusic();    // ensure the always-on ambient is going
     if (settings.calmCheck) {
       showCalm('before', (val) => { pendingCalmBefore = val; startSession(); });
     } else {
@@ -1987,47 +1922,44 @@
     if (e.key === 'Escape') { e.preventDefault(); resolveCalm(null); }
   });
 
-  // ----- In-session audio controls -----
-  el.btnMute.addEventListener('click', () => setMuted(!muted));
-
-  el.btnAudioPanel.addEventListener('click', () => {
-    const willOpen = el.audioPanel.hidden;
-    el.audioPanel.hidden = !willOpen;
-    el.btnAudioPanel.setAttribute('aria-expanded', String(willOpen));
+  // ----- Global settings gear (available on every screen) -----
+  function openGear() {
+    renderStart();                 // reflect current settings into the shared controls
+    el.settingsOverlay.hidden = false;
+    el.btnGear.setAttribute('aria-expanded', 'true');
+    el.btnSettingsDone.focus();
+  }
+  function closeGear() {
+    el.settingsOverlay.hidden = true;
+    el.btnGear.setAttribute('aria-expanded', 'false');
+    el.btnGear.focus();
+  }
+  el.btnGear.addEventListener('click', () => {
+    initAudio();                   // first gesture may be opening settings — unlock + start music
+    startMusic();
+    el.settingsOverlay.hidden ? openGear() : closeGear();
+  });
+  el.btnSettingsDone.addEventListener('click', closeGear);
+  el.settingsOverlay.addEventListener('click', (e) => { if (e.target === el.settingsOverlay) closeGear(); });
+  el.settingsOverlay.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') { e.preventDefault(); closeGear(); }
   });
 
-  el.sessOptSound.addEventListener('click', () => {
-    settings.sound = !settings.sound;
-    saveSettings();
-    if (settings.sound) initAudio(); // ensure the context exists if enabling mid-session
-    updateAudioButtons();
-  });
-
-  // Change/turn off the ambient track mid-session (crossfades, never interrupts).
-  el.sessBgSelect.addEventListener('change', () => {
-    if (settings.sound || el.sessBgSelect.value !== 'off') initAudio(); // unlock on this gesture
-    selectSessionTrack(el.sessBgSelect.value);
-  });
-
-  el.sessBgVolume.addEventListener('input', () => {
-    settings.bgVolume = clamp(parseInt(el.sessBgVolume.value, 10) / 100 || 0, 0, 1);
-    saveSettings();
-    if (music.master && music.playing) musicFade(musicTarget(), 0.2);
-  });
-
-  // Live 2D / 3D orb switch (render() reads animationStyle each frame, so it
-  // changes immediately without interrupting or resetting the session).
-  el.sessVisual.querySelectorAll('.segmented__btn').forEach((btn) => {
-    btn.addEventListener('click', () => {
-      settings.animationStyle = (btn.getAttribute('data-style') === 'liquid3d') ? 'liquid3d' : 'liquid';
-      saveSettings();
-      updateAudioButtons();
-    });
-  });
+  // Always-on ambient music: start on the very first user gesture anywhere
+  // (autoplay policies block audio before any interaction). One-shot.
+  function primeMusicOnce() {
+    document.removeEventListener('pointerdown', primeMusicOnce);
+    document.removeEventListener('keydown', primeMusicOnce);
+    initAudio();
+    startMusic();
+  }
+  document.addEventListener('pointerdown', primeMusicOnce, { once: false });
+  document.addEventListener('keydown', primeMusicOnce, { once: false });
 
   // Keyboard: Space toggles pause during a session; Escape stops.
   document.addEventListener('keydown', (e) => {
     if (!session.active) return;
+    if (!el.settingsOverlay.hidden) return; // let the gear handle its own keys
     const tag = (e.target && e.target.tagName) || '';
     if (e.key === 'Escape') { e.preventDefault(); stopSession(); }
     else if ((e.key === ' ' || e.code === 'Space') && tag !== 'BUTTON') {

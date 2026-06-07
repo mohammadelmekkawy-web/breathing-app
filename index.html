@@ -173,54 +173,7 @@
           <p class="field__note">~6 breaths per minute · a good place to start</p>
         </div>
 
-        <!-- Advanced options: tucked away but discoverable, values visible when open -->
-        <details class="options">
-          <summary class="options__summary">Options</summary>
-          <div class="options__body">
-            <div class="toggle">
-              <span class="toggle__label" id="lbl-sound">Sound cues</span>
-              <button type="button" class="switch" id="opt-sound" role="switch"
-                      aria-checked="true" aria-labelledby="lbl-sound"><span class="switch__dot"></span></button>
-            </div>
-            <div class="opt-block">
-              <span class="toggle__label" id="lbl-bg">Background sound</span>
-              <div class="segmented segmented--col" role="radiogroup" aria-labelledby="lbl-bg" id="bg-select">
-                <button type="button" class="segmented__btn" role="radio" aria-checked="true" data-track="off">Off</button>
-                <button type="button" class="segmented__btn" role="radio" aria-checked="false" data-track="leberch">Meditation — Leberch</button>
-                <button type="button" class="segmented__btn" role="radio" aria-checked="false" data-track="starostin">Meditation — Starostin</button>
-              </div>
-              <button type="button" class="btn btn--ghost btn--row" id="bg-preview" aria-pressed="false" disabled>▶ Preview</button>
-            </div>
-            <div class="toggle toggle--slider" id="bg-volume-row">
-              <label class="toggle__label" for="bg-volume">Background volume</label>
-              <input type="range" class="slider" id="bg-volume"
-                     min="0" max="100" step="1" value="50"
-                     aria-label="Background music volume" />
-            </div>
-            <div class="toggle">
-              <span class="toggle__label" id="lbl-haptic">Haptic feedback</span>
-              <button type="button" class="switch" id="opt-haptic" role="switch"
-                      aria-checked="true" aria-labelledby="lbl-haptic"><span class="switch__dot"></span></button>
-            </div>
-            <div class="toggle toggle--select">
-              <label class="toggle__label" for="opt-visual">Breathing visual</label>
-              <select class="select" id="opt-visual" aria-label="Breathing visual style">
-                <option value="liquid">Liquid orb (2D)</option>
-                <option value="liquid3d">Liquid orb (3D ✨)</option>
-              </select>
-            </div>
-            <div class="toggle">
-              <span class="toggle__label" id="lbl-calm">Calm check (before &amp; after)</span>
-              <button type="button" class="switch" id="opt-calm" role="switch"
-                      aria-checked="true" aria-labelledby="lbl-calm"><span class="switch__dot"></span></button>
-            </div>
-            <div class="toggle">
-              <span class="toggle__label" id="lbl-theme">Light theme</span>
-              <button type="button" class="switch" id="opt-theme" role="switch"
-                      aria-checked="false" aria-labelledby="lbl-theme"><span class="switch__dot"></span></button>
-            </div>
-          </div>
-        </details>
+        <!-- Settings now live in the global ⚙️ gear (top-right, every screen). -->
 
         <!-- Profile & data: personalization, export, intro replay (all local) -->
         <details class="options">
@@ -266,62 +219,6 @@
           <div class="liquid-text">
             <span class="breath__phase" id="phase-label-liquid">Ready</span>
             <span class="breath__count" id="count-liquid" aria-hidden="true"></span>
-          </div>
-        </div>
-      </div>
-
-      <!-- In-session audio controls: always-visible mute, finer controls one tap away -->
-      <div class="audiobar">
-        <button type="button" class="iconbtn" id="btn-mute" aria-pressed="false" aria-label="Mute all sound">
-          <svg class="icon icon-sound" viewBox="0 0 24 24" aria-hidden="true" fill="none"
-               stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M11 5 6 9H3v6h3l5 4z" />
-            <path d="M16 9a4 4 0 0 1 0 6" />
-            <path d="M19 6a8 8 0 0 1 0 12" />
-          </svg>
-          <svg class="icon icon-muted" viewBox="0 0 24 24" aria-hidden="true" fill="none"
-               stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M11 5 6 9H3v6h3l5 4z" />
-            <line x1="22" y1="9" x2="16" y2="15" />
-            <line x1="16" y1="9" x2="22" y2="15" />
-          </svg>
-        </button>
-        <button type="button" class="iconbtn" id="btn-audio-panel"
-                aria-expanded="false" aria-controls="audio-panel" aria-label="Sound settings">
-          <svg class="icon" viewBox="0 0 24 24" aria-hidden="true" fill="none"
-               stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <line x1="4" y1="21" x2="4" y2="14" /><line x1="4" y1="10" x2="4" y2="3" />
-            <line x1="12" y1="21" x2="12" y2="12" /><line x1="12" y1="8" x2="12" y2="3" />
-            <line x1="20" y1="21" x2="20" y2="16" /><line x1="20" y1="12" x2="20" y2="3" />
-            <line x1="1" y1="14" x2="7" y2="14" /><line x1="9" y1="8" x2="15" y2="8" /><line x1="17" y1="16" x2="23" y2="16" />
-          </svg>
-        </button>
-
-        <div class="audio-panel" id="audio-panel" role="group" aria-label="Sound settings" hidden>
-          <div class="toggle">
-            <span class="toggle__label" id="lbl-sess-sound">Cue tones</span>
-            <button type="button" class="switch" id="sess-opt-sound" role="switch"
-                    aria-checked="true" aria-labelledby="lbl-sess-sound"><span class="switch__dot"></span></button>
-          </div>
-          <div class="toggle toggle--select">
-            <label class="toggle__label" for="sess-bg-select">Ambient track</label>
-            <select class="select" id="sess-bg-select" aria-label="Ambient background track">
-              <option value="off">Off</option>
-              <option value="leberch">Meditation — Leberch</option>
-              <option value="starostin">Meditation — Starostin</option>
-            </select>
-          </div>
-          <div class="toggle toggle--slider">
-            <label class="toggle__label" for="sess-bg-volume">Volume</label>
-            <input type="range" class="slider" id="sess-bg-volume"
-                   min="0" max="100" step="1" value="50" aria-label="Background music volume" />
-          </div>
-          <div class="toggle">
-            <span class="toggle__label" id="lbl-sess-visual">Orb style</span>
-            <div class="segmented segmented--mini" role="radiogroup" aria-labelledby="lbl-sess-visual" id="sess-visual">
-              <button type="button" class="segmented__btn" role="radio" aria-checked="false" data-style="liquid">2D</button>
-              <button type="button" class="segmented__btn" role="radio" aria-checked="true" data-style="liquid3d">3D</button>
-            </div>
           </div>
         </div>
       </div>
@@ -445,6 +342,58 @@
           <button type="button" class="btn btn--ghost" id="export-download">Download</button>
         </div>
         <button type="button" class="btn btn--ghost" id="export-close">Close</button>
+      </div>
+    </div>
+
+    <!-- ===================== GLOBAL SETTINGS (gear — every screen) ===================== -->
+    <button type="button" class="gearbtn" id="btn-gear" aria-label="Settings" aria-haspopup="dialog" aria-expanded="false">
+      <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="12" r="3.1" />
+        <path d="M19.4 13a7.8 7.8 0 0 0 0-2l1.9-1.5-1.9-3.3-2.3 1a7.7 7.7 0 0 0-1.7-1l-.4-2.4h-3.8l-.4 2.4a7.7 7.7 0 0 0-1.7 1l-2.3-1L2.7 9.5 4.6 11a7.8 7.8 0 0 0 0 2l-1.9 1.5 1.9 3.3 2.3-1a7.7 7.7 0 0 0 1.7 1l.4 2.4h3.8l.4-2.4a7.7 7.7 0 0 0 1.7-1l2.3 1 1.9-3.3z" />
+      </svg>
+    </button>
+
+    <div id="settings-overlay" class="overlay" role="dialog" aria-modal="true" aria-labelledby="settings-title" hidden>
+      <div class="overlay__card overlay__card--settings">
+        <h2 class="overlay__title" id="settings-title">Settings</h2>
+        <div class="settings-list">
+          <div class="toggle">
+            <span class="toggle__label" id="lbl-sound">Cue tones</span>
+            <button type="button" class="switch" id="opt-sound" role="switch" aria-checked="true" aria-labelledby="lbl-sound"><span class="switch__dot"></span></button>
+          </div>
+          <div class="toggle">
+            <span class="toggle__label" id="lbl-haptic">Vibration</span>
+            <button type="button" class="switch" id="opt-haptic" role="switch" aria-checked="true" aria-labelledby="lbl-haptic"><span class="switch__dot"></span></button>
+          </div>
+          <div class="toggle">
+            <span class="toggle__label" id="lbl-calm">Calm check (before &amp; after)</span>
+            <button type="button" class="switch" id="opt-calm" role="switch" aria-checked="true" aria-labelledby="lbl-calm"><span class="switch__dot"></span></button>
+          </div>
+          <div class="toggle">
+            <span class="toggle__label" id="lbl-theme">Light theme</span>
+            <button type="button" class="switch" id="opt-theme" role="switch" aria-checked="false" aria-labelledby="lbl-theme"><span class="switch__dot"></span></button>
+          </div>
+          <div class="toggle toggle--select">
+            <label class="toggle__label" for="opt-visual">Orb style</label>
+            <select class="select" id="opt-visual" aria-label="Breathing orb style">
+              <option value="liquid">Liquid orb (2D)</option>
+              <option value="liquid3d">Liquid orb (3D ✨)</option>
+            </select>
+          </div>
+          <div class="opt-block">
+            <span class="toggle__label" id="lbl-bg">Ambient sound</span>
+            <div class="segmented segmented--col" role="radiogroup" aria-labelledby="lbl-bg" id="bg-select">
+              <button type="button" class="segmented__btn" role="radio" aria-checked="false" data-track="off">Off</button>
+              <button type="button" class="segmented__btn" role="radio" aria-checked="true" data-track="leberch">Meditation — Leberch</button>
+              <button type="button" class="segmented__btn" role="radio" aria-checked="false" data-track="starostin">Meditation — Starostin</button>
+            </div>
+          </div>
+          <div class="toggle toggle--slider">
+            <label class="toggle__label" for="bg-volume">Ambient volume</label>
+            <input type="range" class="slider" id="bg-volume" min="0" max="100" step="1" value="50" aria-label="Ambient music volume" />
+          </div>
+        </div>
+        <button type="button" class="btn btn--primary" id="btn-settings-done">Done</button>
       </div>
     </div>
 

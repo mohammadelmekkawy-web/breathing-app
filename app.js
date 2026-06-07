@@ -497,7 +497,7 @@
   el.bgVolume.addEventListener('input', () => {
     settings.bgVolume = clamp(parseInt(el.bgVolume.value, 10) / 100 || 0, 0, 1);
     saveSettings();
-    if (music.master && music.playing) musicFade(musicTarget(), 0.2); // live-adjust
+    setMusicVolume(); // live-adjust (honoured on desktop/Android)
   });
   el.optVisual.addEventListener('change', () => {
     settings.animationStyle = (el.optVisual.value === 'liquid3d') ? 'liquid3d' : 'liquid';
@@ -574,10 +574,15 @@
   /* =======================================================
      AMBIENT MUSIC — always-on looping MP3 (user-chosen track)
      Plays continuously across the whole app, not tied to a session.
-     Streamed via HTMLAudio (low memory) and routed through Web Audio
-     gain nodes so volume works on iOS (where element.volume is
-     read-only). Looped seamlessly by crossfading between two players
-     near the loop seam, with a gentle master fade-in/out.
+
+     IMPORTANT (mobile): the MP3 is played by a PLAIN <audio> element and is
+     NOT routed through Web Audio. On iOS, AudioContext output is silenced by
+     the hardware ring/silent switch, whereas a media element plays through the
+     "playback" audio session — so the music is audible even when the phone is
+     on silent (the right behaviour for a calm/breathing app, and what makes it
+     work on mobile at all). Volume is set via element.volume — honoured on
+     desktop & Android; on iOS the hardware volume governs it (the slider is a
+     gentle no-op there). Looping is native (loop=true).
      ======================================================= */
   const TRACKS = [
     { id: 'leberch',   name: 'Meditation — Leberch',   src: 'audio/meditation-leberch.mp3' },
@@ -585,188 +590,77 @@
   ];
   function trackById(id) { return TRACKS.find((t) => t.id === id) || null; }
 
-  // Vestigial mute flag — kept so playTone()/musicTarget() guards still compile.
-  // Ambient music is global and never force-muted; it stays permanently false.
+  // Vestigial mute flag — kept so playTone()'s guard still compiles. Cue tones
+  // are never force-muted; this stays permanently false.
   let muted = false;
 
-  const XFADE = 2.5; // seconds — crossfade length at the loop seam
-  const music = {
-    playing: false,     // audibly playing right now
-    wanted: false,      // user wants music this session (survives pause)
-    respectMute: false, // session playback honours mute; preview doesn't
-    trackId: null,
-    els: [], nodes: [], gains: [], // two crossfading players (2nd created lazily)
-    master: null,
-    cur: 0,
-    monitorId: 0,
-    teardownTimer: 0,
-    xfadeArmed: false,
-  };
+  let musicEl = null;        // the single looping <audio> element (current track)
+  let musicFadeTimer = 0;
+  const musicVol = (v) => Math.max(0, Math.min(1, v));
 
-  function musicTarget() {
-    if (music.respectMute && muted) return 0.0001;
-    return Math.max(0.0001, clamp(settings.bgVolume, 0, 1)); // ceiling 1.0 (MP3s pre-mastered)
-  }
-  function musicFade(target, seconds) {
-    if (!music.master || !audioCtx) return;
-    const g = music.master.gain;
-    const now = audioCtx.currentTime;
-    g.cancelScheduledValues(now);
-    g.setValueAtTime(Math.max(0.0001, g.value), now);
-    g.linearRampToValueAtTime(Math.max(0.0001, target), now + Math.max(0.05, seconds));
+  // Smoothly ramp element.volume to a target over `seconds` (no-op on iOS, where
+  // volume is read-only — there it simply jumps/stays at the system level).
+  function musicFadeTo(target, seconds, thenPause) {
+    if (!musicEl) return;
+    clearInterval(musicFadeTimer); musicFadeTimer = 0;
+    const owner = musicEl;
+    const to = musicVol(target);
+    let from = owner.volume; if (!isFinite(from)) from = 0;
+    const steps = Math.max(1, Math.round(Math.max(0.05, seconds) * 30));
+    let step = 0;
+    musicFadeTimer = setInterval(() => {
+      if (musicEl !== owner) { clearInterval(musicFadeTimer); musicFadeTimer = 0; return; }
+      step++;
+      try { owner.volume = musicVol(from + (to - from) * (step / steps)); } catch {}
+      if (step >= steps) {
+        clearInterval(musicFadeTimer); musicFadeTimer = 0;
+        if (thenPause) { try { owner.pause(); } catch {} }
+      }
+    }, 1000 / 30);
   }
 
-  // Create (lazily) one of the two crossfading players and wire it into the graph.
-  function musicEnsureElement(i) {
-    if (music.els[i]) return music.els[i];
-    const track = trackById(music.trackId);
-    if (!track || !audioCtx || !music.master) return null;
+  // Build (or rebuild) the looping element for a track and fade it in.
+  function buildMusicEl(track) {
+    if (musicEl) { try { musicEl.pause(); musicEl.src = ''; musicEl.load(); } catch {} musicEl = null; }
+    clearInterval(musicFadeTimer); musicFadeTimer = 0;
     const a = new Audio(track.src);
+    a.loop = true;
     a.preload = 'auto';
-    let node;
-    try { node = audioCtx.createMediaElementSource(a); } catch { return null; }
-    const g = audioCtx.createGain();
-    g.gain.value = (i === music.cur) ? 1.0 : 0.0001;
-    node.connect(g).connect(music.master);
-    a.addEventListener('ended', () => {
-      // Safety net: if a crossfade was missed (e.g. heavy backgrounding),
-      // restart this player rather than fall silent.
-      if (music.playing && music.els[music.cur] === a) {
-        try { a.currentTime = 0; const p = a.play(); if (p && p.catch) p.catch(() => {}); } catch {}
-      }
-    });
-    music.els[i] = a; music.nodes[i] = node; music.gains[i] = g;
-    return a;
+    a.setAttribute('playsinline', '');
+    a.dataset.track = track.id;
+    a.volume = 0;
+    musicEl = a;
+    const p = a.play();
+    if (p && p.catch) p.catch(() => {}); // blocked before a gesture; a later gesture retries
+    musicFadeTo(musicVol(settings.bgVolume), 1.4, false);
   }
 
-  // Poll near the loop seam and crossfade to the other player → seamless loop.
-  function musicMonitor() {
-    if (!music.playing || !audioCtx) return;
-    const a = music.els[music.cur];
-    if (!a || !a.duration || !isFinite(a.duration)) return;
-    if (a.duration - a.currentTime <= XFADE && !music.xfadeArmed) {
-      music.xfadeArmed = true;
-      musicCrossfade();
-    }
-  }
-  function musicCrossfade() {
-    if (!audioCtx || !music.master) return;
-    const now = audioCtx.currentTime;
-    const from = music.cur;
-    const to = from ^ 1;
-    const b = musicEnsureElement(to);
-    if (!b) { music.xfadeArmed = false; return; }
-    try { b.currentTime = 0; const p = b.play(); if (p && p.catch) p.catch(() => {}); } catch {}
-    const gf = music.gains[from].gain;
-    const gt = music.gains[to].gain;
-    gf.cancelScheduledValues(now); gf.setValueAtTime(Math.max(0.0001, gf.value), now);
-    gf.linearRampToValueAtTime(0.0001, now + XFADE);
-    gt.cancelScheduledValues(now); gt.setValueAtTime(Math.max(0.0001, gt.value), now);
-    gt.linearRampToValueAtTime(1.0, now + XFADE);
-    music.cur = to;
-    // Park the old player once silent, ready for the next loop.
-    setTimeout(() => {
-      const old = music.els[from];
-      if (old && music.cur !== from) { try { old.pause(); old.currentTime = 0; } catch {} }
-      music.xfadeArmed = false;
-    }, (XFADE + 0.25) * 1000);
-  }
-
-  function musicHardStop() {
-    clearInterval(music.monitorId); music.monitorId = 0;
-    clearTimeout(music.teardownTimer); music.teardownTimer = 0;
-    music.playing = false;
-    (music.els || []).forEach((a) => { if (a) { try { a.pause(); a.src = ''; a.load(); } catch {} } });
-    try { if (music.master) music.master.disconnect(); } catch {}
-    music.master = null; music.els = []; music.nodes = []; music.gains = [];
-    music.trackId = null; music.cur = 0; music.xfadeArmed = false;
-  }
-
-  function musicStart(trackId, respectMute) {
-    const track = trackById(trackId);
-    if (!track || !ensureAudioCtx()) return;
-    musicHardStop(); // clean any preview / previous instance — never overlap
-    try {
-      music.master = audioCtx.createGain();
-      music.master.gain.setValueAtTime(0.0001, audioCtx.currentTime);
-      music.master.connect(audioCtx.destination);
-      music.trackId = trackId;
-      music.respectMute = respectMute;
-      music.cur = 0;
-      const a = musicEnsureElement(0);
-      if (!a) { musicHardStop(); return; }
-      music.playing = true;
-      const p = a.play(); if (p && p.catch) p.catch(() => {});
-      musicFade(musicTarget(), respectMute ? 3.0 : 1.2); // gentle ease-in
-      clearInterval(music.monitorId);
-      music.monitorId = setInterval(musicMonitor, 300);
-    } catch { musicHardStop(); }
-  }
-
-  function musicStop(seconds) {
-    const sec = seconds || 2.0;
-    if (!music.master) { musicHardStop(); return; }
-    music.playing = false;
-    clearInterval(music.monitorId); music.monitorId = 0;
-    musicFade(0, sec);
-    const dyingEls = music.els.slice();
-    const dyingMaster = music.master;
-    clearTimeout(music.teardownTimer);
-    music.teardownTimer = setTimeout(() => {
-      dyingEls.forEach((a) => { if (a) { try { a.pause(); a.src = ''; a.load(); } catch {} } });
-      try { dyingMaster.disconnect(); } catch {}
-      if (music.master === dyingMaster) {
-        music.master = null; music.els = []; music.nodes = []; music.gains = []; music.trackId = null;
-      }
-    }, (sec + 0.3) * 1000);
-  }
-
-  // Crossfade from the currently-playing track to a different one: detach the
-  // old graph and fade it out while the new one fades in (overlapping, no gap).
-  function musicCrossfadeTo(newTrackId) {
-    if (!audioCtx || !music.master) { musicStart(newTrackId, true); return; }
-    const rm = music.respectMute;
-    const oldMaster = music.master;
-    const oldEls = music.els.slice();
-    clearInterval(music.monitorId); music.monitorId = 0;
-    clearTimeout(music.teardownTimer); music.teardownTimer = 0;
-    // Detach the old graph from the global state so musicStart() builds fresh
-    // without hard-stopping the track we're still fading out.
-    music.master = null; music.els = []; music.nodes = []; music.gains = []; music.playing = false;
-    try {
-      const now = audioCtx.currentTime;
-      oldMaster.gain.cancelScheduledValues(now);
-      oldMaster.gain.setValueAtTime(Math.max(0.0001, oldMaster.gain.value), now);
-      oldMaster.gain.linearRampToValueAtTime(0.0001, now + 2.0); // gentle fade-out
-    } catch {}
-    setTimeout(() => {
-      oldEls.forEach((a) => { if (a) { try { a.pause(); a.src = ''; a.load(); } catch {} } });
-      try { oldMaster.disconnect(); } catch {}
-    }, 2300);
-    musicStart(newTrackId, rm); // builds + fades the new track in
-  }
-
-  // ----- Always-on ambient music -----
-  // Music plays continuously across the WHOLE app (welcome → onboarding → home →
-  // session → end), independent of any breathing session. It starts on the user's
-  // first gesture (autoplay policies block audio before interaction) and only stops
-  // when the user chooses "Off" in the gear. Pausing a session does NOT pause music.
+  // Always-on ambient music: plays continuously across the WHOLE app (welcome →
+  // onboarding → home → session → end), independent of any session. Starts on the
+  // user's first gesture (autoplay policy) and only stops when they choose "Off".
+  // Pausing a session does NOT pause it. Safe to call repeatedly.
   function startMusic() {
     if (settings.bgTrack === 'off') return;
-    if (!ensureAudioCtx()) return;
-    if (music.playing && music.trackId === settings.bgTrack) return; // already going
-    musicStart(settings.bgTrack, false);
+    const track = trackById(settings.bgTrack);
+    if (!track) return;
+    if (musicEl && musicEl.dataset.track === settings.bgTrack) {
+      if (musicEl.paused) { const p = musicEl.play(); if (p && p.catch) p.catch(() => {}); }
+      musicFadeTo(musicVol(settings.bgVolume), 1.0, false);
+      return; // already on this track
+    }
+    buildMusicEl(track);
   }
 
-  // React to a track change from the gear: start / crossfade / stop the music live.
+  // React to a track change from the gear: start / swap / stop the music live.
   function applyTrackChange(trackId) {
-    if (trackId === 'off') { musicStop(1.2); return; }
-    if (!ensureAudioCtx()) return;
-    if (music.master && music.playing && music.trackId !== trackId) {
-      musicCrossfadeTo(trackId);              // smooth swap while playing
-    } else if (!(music.master && music.trackId === trackId)) {
-      musicStart(trackId, false);             // wasn't playing → start it
-    }
+    if (trackId === 'off') { if (musicEl) musicFadeTo(0, 1.0, true); return; }
+    const track = trackById(trackId);
+    if (track) buildMusicEl(track); // fresh element fades in (old one torn down)
+  }
+
+  // Live volume from the gear slider (gentle ramp; no-op on iOS).
+  function setMusicVolume() {
+    if (musicEl && !musicEl.paused) musicFadeTo(musicVol(settings.bgVolume), 0.2, false);
   }
 
   /* ---------- Haptics ---------- */

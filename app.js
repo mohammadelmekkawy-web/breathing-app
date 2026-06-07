@@ -290,6 +290,7 @@
     sessOptSound: $('sess-opt-sound'),
     sessBgSelect: $('sess-bg-select'),
     sessBgVolume: $('sess-bg-volume'),
+    sessOpt3d: $('sess-opt-3d'),
 
     endTime: $('end-time'),
     endCount: $('end-count'),
@@ -799,6 +800,7 @@
     el.sessBgSelect.value = settings.bgTrack;
     el.sessBgVolume.value = String(Math.round(settings.bgVolume * 100));
     el.sessBgVolume.disabled = (settings.bgTrack === 'off');
+    setSwitch(el.sessOpt3d, settings.animationStyle === 'liquid3d');
   }
 
   // ----- In-settings track preview (play/stop a short audition) -----
@@ -1928,6 +1930,14 @@
     settings.bgVolume = clamp(parseInt(el.sessBgVolume.value, 10) / 100 || 0, 0, 1);
     saveSettings();
     if (music.master && music.playing) musicFade(musicTarget(), 0.2);
+  });
+
+  // Live 2D ⇄ 3D orb switch (render() reads animationStyle each frame, so it
+  // changes immediately without interrupting or resetting the session).
+  el.sessOpt3d.addEventListener('click', () => {
+    settings.animationStyle = (settings.animationStyle === 'liquid3d') ? 'liquid' : 'liquid3d';
+    saveSettings();
+    updateAudioButtons();
   });
 
   // Keyboard: Space toggles pause during a session; Escape stops.

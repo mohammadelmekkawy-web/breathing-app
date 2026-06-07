@@ -478,6 +478,14 @@ body {
 .controls .btn { flex: 1; }
 .controls--stack { flex-direction: column; }
 
+/* Mode-specific technique cue under the orb (e.g. "through your nose") */
+.breath-method {
+  min-height: 1.4em; margin: 0 0 var(--s2); text-align: center;
+  color: var(--text-dim); font-size: 1.02rem; letter-spacing: 0.01em;
+  transition: opacity 0.4s ease; opacity: 0;
+}
+.breath-method.is-on { opacity: 1; }
+
 /* ===================== END ===================== */
 .screen--end { justify-content: center; align-items: center; }
 .end-card {

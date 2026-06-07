@@ -294,6 +294,7 @@
     breath: $('breath'),
     phaseLabel: $('phase-label'),
     count: $('count'),
+    breathMethod: $('breath-method'),
     ringFill: document.querySelector('.ring__fill'),
     btnPause: $('btn-pause'),
     btnStop: $('btn-stop'),
@@ -776,12 +777,26 @@
     session.rafId = requestAnimationFrame(tick);
   }
 
+  // Mode-specific breathing technique: where the air should go.
+  // Box & 4-7-8: in through nose, out through mouth. Coherent: nose both ways
+  // (smooth nasal breathing). Holds & custom inhales default to the nose.
+  function breathMethodText(mode, label) {
+    if (label === 'Inhale') return 'in through your nose';
+    if (label === 'Exhale') return mode === 'coherent' ? 'out through your nose' : 'out through your mouth';
+    return ''; // Hold — no cue
+  }
+
   function enterPhase(index, announce) {
     session.phaseIndex = index;
     session.phaseElapsed = 0;
     const phase = session.phases[index];
     el.phaseLabel.textContent = phase.label;
     el.phaseLabelLiquid.textContent = phase.label;
+
+    // Mode-specific technique cue (fades out on holds).
+    const method = breathMethodText(session.mode, phase.label);
+    el.breathMethod.textContent = method;
+    el.breathMethod.classList.toggle('is-on', !!method);
 
     // Immediate-feedback countdown starts at full seconds
     const total = Math.round(phase.dur / 1000);

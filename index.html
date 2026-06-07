@@ -103,22 +103,27 @@
             <!-- Curved air streams over the nose/mouth (viewBox matches the figure box) -->
             <svg class="learn-air" viewBox="0 0 100 100" aria-hidden="true" focusable="false" fill="none"
                  stroke="#9fd2f3" stroke-width="1.5" stroke-linecap="round">
-              <!-- inhale: streams curving INTO the nose (~72,40) from the right; arrow points IN (left) -->
+              <defs>
+                <!-- arrowhead that auto-rotates to each line's end direction -->
+                <marker id="airArrow" markerUnits="userSpaceOnUse" markerWidth="7" markerHeight="7"
+                        refX="5.2" refY="3.5" orient="auto">
+                  <path d="M0.5,0.6 L6.3,3.5 L0.5,6.4 Z" fill="#9fd2f3" stroke="none"/>
+                </marker>
+              </defs>
+              <!-- inhale: each stream flows INTO the nose; arrow on each line points IN -->
               <g class="learn-air--in">
-                <path class="learn-air__line" d="M99,33 Q86,34 78,39"/>
-                <path class="learn-air__line" d="M99,41 Q88,42 79,44"/>
-                <path class="learn-air__line" d="M99,49 Q88,49 80,47"/>
-                <path class="learn-air__tip" d="M81,40 L77,43 L81,46"/>
-                <circle cx="93" cy="30" r="0.9" fill="#bfe0f5" stroke="none"/>
+                <path class="learn-air__line" marker-end="url(#airArrow)" d="M99,32 Q86,33 78,39"/>
+                <path class="learn-air__line" marker-end="url(#airArrow)" d="M99,41 Q88,42 79,44"/>
+                <path class="learn-air__line" marker-end="url(#airArrow)" d="M99,50 Q88,51 80,48"/>
+                <circle cx="95" cy="28" r="0.9" fill="#bfe0f5" stroke="none"/>
                 <circle cx="96" cy="46" r="0.9" fill="#bfe0f5" stroke="none"/>
               </g>
-              <!-- exhale: streams curving OUT of the mouth (~70,48) to the lower right; arrow points OUT (right) -->
+              <!-- exhale: each stream flows OUT of the mouth; arrow on each line points OUT -->
               <g class="learn-air--out">
-                <path class="learn-air__line" d="M73,47 Q85,49 98,55"/>
-                <path class="learn-air__line" d="M73,50 Q84,54 96,61"/>
-                <path class="learn-air__line" d="M73,53 Q82,58 92,65"/>
-                <path class="learn-air__tip" d="M93,58 L97,61 L93,64"/>
-                <circle cx="88" cy="56" r="0.9" fill="#bfe0f5" stroke="none"/>
+                <path class="learn-air__line" marker-end="url(#airArrow)" d="M73,47 Q85,49 97,55"/>
+                <path class="learn-air__line" marker-end="url(#airArrow)" d="M73,50 Q84,54 95,61"/>
+                <path class="learn-air__line" marker-end="url(#airArrow)" d="M73,53 Q82,58 92,66"/>
+                <circle cx="86" cy="55" r="0.9" fill="#bfe0f5" stroke="none"/>
               </g>
             </svg>
           </div>

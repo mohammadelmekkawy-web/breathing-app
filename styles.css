@@ -565,7 +565,6 @@ body {
 .learn-air { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; overflow: visible; filter: drop-shadow(0 0 3px rgba(159,210,243,0.6)); }
 .learn-air--in, .learn-air--out { opacity: 0; transition: opacity 0.5s ease; }
 .learn-air__line { stroke-dasharray: 7 6; }
-.learn-air__tip { stroke-dasharray: none; stroke-width: 2; }   /* direction arrow — solid */
 .learn__scene.is-inhale .learn-air--in { opacity: 0.95; }
 .learn__scene.is-exhale .learn-air--out { opacity: 0.95; }
 @media (prefers-reduced-motion: no-preference) {

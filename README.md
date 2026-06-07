@@ -11,8 +11,8 @@ designed to ask for the least attention possible.
 - **Goal-based mode selection** — cards describe the benefit ("feel in control", "calm down") instead of technique names.
 - **Beginner guidance** — recommended default settings and first-time hint on startup.
 - **Liquid-fill animation** — optional visual style: a vessel that fills/drains with smooth liquid instead of circle scaling.
-- **Adaptive ambient soundscape** — optional, off by default. A real-time synthesized warm pad (detuned root + fifth + octave) through light reverb that *brightens on the inhale and settles on the exhale*, morphing continuously with the breath. Independent on/off toggle and volume slider; layered softly under the phase-change cue tones so the app is fully usable eyes-closed.
-- **In-session audio controls** — always-visible mute plus a one-tap panel (cue tones, soundscape, volume) that fade in/out without interrupting the session.
+- **Background meditation music** — optional, off by default. Choose one of two looping ambient MP3 tracks; preview them in settings before committing. Seamlessly looped (crossfade at the seam) with gentle fade in/out, layered under the phase-change cue tones so the app stays usable eyes-closed. Cached after first play for offline use.
+- **In-session audio controls** — always-visible mute plus a one-tap panel (cue tones, background music, volume) that fade in/out without interrupting the session.
 - **Animated welcome + onboarding** — a first-launch intro (with a gentle chime) and a quick, skippable profile (name, age range, goal) that suggests a recommended mode. Replayable from settings.
 - **Encouragement-only gamification** — points per session and a forgiving day-streak that *only* builds up (a missed day pauses it, never resets, no guilt). Structured for a future (local) leaderboard.
 - **Honest end-of-session dashboard** — real personal stats (session minutes, totals, lifetime, streak, points), an effective-dose ring toward the research-backed ~5–10 min/day, general-info consistency milestones, and an optional 1–5 calm self-check with your own before/after delta. No invented biomarkers.

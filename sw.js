@@ -16,7 +16,7 @@
 
 // ⚠️  Do not hand-edit unless you know why — tools/deploy.sh rewrites this line
 //     with a unique timestamp+commit on every deploy so caches always bust.
-const VERSION = '2026.06.07-041052-01e8d45';
+const VERSION = '2026.06.07-044322-05eaa83';
 
 const CACHE = `breathe-${VERSION}`;
 
@@ -79,7 +79,9 @@ self.addEventListener('activate', (event) => {
   })());
 });
 
-/* ---- Fetch: network-first for the shell, cache-first for static assets ---- */
+/* ---- Fetch: network-first for the shell, cache-first for static assets,
+       and proper Range handling for audio so playback never breaks and the
+       track becomes available offline after first play. ---- */
 self.addEventListener('fetch', (event) => {
   const req = event.request;
   if (req.method !== 'GET') return;
@@ -87,12 +89,59 @@ self.addEventListener('fetch', (event) => {
   const url = new URL(req.url);
   if (url.origin !== self.location.origin) return; // ignore cross-origin
 
+  // Audio/byte-range requests (HTMLAudio, esp. iOS) — serve a 206 slice.
+  if (req.headers.has('range')) { event.respondWith(rangeResponse(req)); return; }
+
   if (req.mode === 'navigate' || isShell(url)) {
     event.respondWith(networkFirst(req));
   } else {
     event.respondWith(cacheFirst(req));
   }
 });
+
+// Keep the active track's bytes in memory (1 at a time) to avoid re-reading the
+// whole file from Cache on every range request.
+const _mediaMem = new Map();
+async function getFullMedia(url) {
+  if (_mediaMem.has(url)) return _mediaMem.get(url);
+  const cache = await caches.open(CACHE);
+  let res = await cache.match(url, { ignoreVary: true });
+  if (!res) {
+    const net = await fetch(url); // full GET (no range) → 200
+    if (!net || !net.ok || net.status !== 200) return null;
+    cache.put(url, net.clone());
+    res = net;
+  }
+  const entry = { buf: await res.arrayBuffer(), type: res.headers.get('Content-Type') || 'audio/mpeg' };
+  _mediaMem.clear(); // hold only the current track
+  _mediaMem.set(url, entry);
+  return entry;
+}
+async function rangeResponse(req) {
+  try {
+    const media = await getFullMedia(req.url);
+    if (!media) return fetch(req); // not cacheable → straight passthrough
+    const total = media.buf.byteLength;
+    const m = /bytes=(\d+)-(\d*)/.exec(req.headers.get('range') || '');
+    let start = m ? parseInt(m[1], 10) : 0;
+    let end = (m && m[2]) ? parseInt(m[2], 10) : total - 1;
+    if (!Number.isFinite(start) || start < 0) start = 0;
+    if (!Number.isFinite(end) || end >= total) end = total - 1;
+    if (start > end) start = 0;
+    const chunk = media.buf.slice(start, end + 1);
+    return new Response(chunk, {
+      status: 206,
+      headers: {
+        'Content-Type': media.type,
+        'Content-Range': `bytes ${start}-${end}/${total}`,
+        'Accept-Ranges': 'bytes',
+        'Content-Length': String(chunk.byteLength),
+      },
+    });
+  } catch {
+    try { return await fetch(req); } catch { return new Response('', { status: 504, statusText: 'Offline' }); }
+  }
+}
 
 async function networkFirst(req) {
   const cache = await caches.open(CACHE);

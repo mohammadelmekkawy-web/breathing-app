@@ -160,6 +160,13 @@ body {
   border-radius: var(--radius); border: 1px solid var(--line);
 }
 .segmented--sm { max-width: 18rem; margin-inline: auto; }
+.segmented--col { grid-template-columns: 1fr; } /* stacked track list */
+
+/* Background-sound block in Options */
+.opt-block { display: flex; flex-direction: column; gap: var(--s1); padding: var(--s2) 0; border-top: 1px solid var(--line); }
+
+/* Disabled controls (e.g. in-session music when no track is chosen) */
+.switch:disabled, .slider:disabled, .btn:disabled { opacity: 0.45; cursor: not-allowed; }
 .segmented__btn {
   min-height: var(--tap);
   display: flex; flex-direction: column; align-items: center; justify-content: center;

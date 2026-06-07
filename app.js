@@ -85,8 +85,8 @@
     haptic: true,
     theme: 'dark',      // 'dark' | 'light'
     animationStyle: 'circle',  // 'circle' or 'liquid'
-    soundscape: false,  // ambient soundscape (optional)
-    soundscapeVolume: 0.3,
+    bgTrack: 'off',     // background music: 'off' | 'leberch' | 'starostin'
+    bgVolume: 0.5,      // background music volume (0..1)
     calmCheck: true,    // optional before/after calm self-rating
   };
   const STORE_KEY = 'breathe.settings.v1';
@@ -105,8 +105,8 @@
         haptic: s.haptic !== false,
         theme: s.theme === 'light' ? 'light' : 'dark',
         animationStyle: s.animationStyle === 'liquid' ? 'liquid' : 'circle',
-        soundscape: s.soundscape === true,
-        soundscapeVolume: clamp(parseFloat(s.soundscapeVolume) || DEFAULTS.soundscapeVolume, 0, 1),
+        bgTrack: ['off', 'leberch', 'starostin'].includes(s.bgTrack) ? s.bgTrack : 'off',
+        bgVolume: clamp(parseFloat(s.bgVolume != null ? s.bgVolume : s.soundscapeVolume) || DEFAULTS.bgVolume, 0, 1),
         calmCheck: s.calmCheck !== false,
       };
     } catch {
@@ -268,8 +268,9 @@
     optSound: $('opt-sound'),
     optHaptic: $('opt-haptic'),
     optTheme: $('opt-theme'),
-    optSoundscape: $('opt-soundscape'),
-    optSoundscapeVolume: $('opt-soundscape-volume'),
+    bgSelect: $('bg-select'),
+    bgPreview: $('bg-preview'),
+    bgVolume: $('bg-volume'),
 
     startForm: $('start-form'),
     btnStart: $('btn-start'),
@@ -287,8 +288,8 @@
     btnAudioPanel: $('btn-audio-panel'),
     audioPanel: $('audio-panel'),
     sessOptSound: $('sess-opt-sound'),
-    sessOptSoundscape: $('sess-opt-soundscape'),
-    sessSoundscapeVolume: $('sess-soundscape-volume'),
+    sessOptMusic: $('sess-opt-music'),
+    sessBgVolume: $('sess-bg-volume'),
 
     endTime: $('end-time'),
     endCount: $('end-count'),
@@ -405,11 +406,16 @@
     // Toggles
     setSwitch(el.optSound, settings.sound);
     setSwitch(el.optHaptic, settings.haptic);
-    setSwitch(el.optSoundscape, settings.soundscape);
     setSwitch(el.optAnimation, settings.animationStyle === 'liquid');
     setSwitch(el.optCalm, settings.calmCheck);
     setSwitch(el.optTheme, settings.theme === 'light');
-    el.optSoundscapeVolume.value = String(Math.round(settings.soundscapeVolume * 100));
+
+    // Background music: selection + volume + preview button
+    el.bgSelect.querySelectorAll('.segmented__btn').forEach((b) => {
+      b.setAttribute('aria-checked', b.getAttribute('data-track') === settings.bgTrack ? 'true' : 'false');
+    });
+    el.bgVolume.value = String(Math.round(settings.bgVolume * 100));
+    updatePreviewBtn();
 
     updateGreeting();
   }
@@ -450,13 +456,27 @@
   // Toggles
   el.optSound.addEventListener('click', () => { settings.sound = !settings.sound; saveSettings(); renderStart(); });
   el.optHaptic.addEventListener('click', () => { settings.haptic = !settings.haptic; saveSettings(); renderStart(); });
-  el.optSoundscape.addEventListener('click', () => { settings.soundscape = !settings.soundscape; saveSettings(); renderStart(); });
-  el.optSoundscapeVolume.addEventListener('input', () => {
-    settings.soundscapeVolume = clamp(parseInt(el.optSoundscapeVolume.value, 10) / 100 || 0, 0, 1);
-    saveSettings();
-    // Live-adjust if the soundscape is currently audible.
-    if (soundscape.active && !soundscape.stopping) fadeSoundscape(soundscapeAudibleTarget(), 0.25);
+
+  // Background sound: choose a track (changing selection stops any preview).
+  el.bgSelect.querySelectorAll('.segmented__btn').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      stopPreview();
+      settings.bgTrack = btn.getAttribute('data-track');
+      saveSettings();
+      renderStart();
+    });
   });
+  el.bgPreview.addEventListener('click', () => { previewing ? stopPreview() : startPreview(); });
+  el.bgVolume.addEventListener('input', () => {
+    settings.bgVolume = clamp(parseInt(el.bgVolume.value, 10) / 100 || 0, 0, 1);
+    saveSettings();
+    if (music.master && music.playing) musicFade(musicTarget(), 0.2); // live-adjust preview/session
+  });
+  // Stop preview when the Options disclosure is collapsed (leaving settings).
+  const bgOptionsDetails = el.bgSelect.closest('details');
+  if (bgOptionsDetails) {
+    bgOptionsDetails.addEventListener('toggle', () => { if (!bgOptionsDetails.open) stopPreview(); });
+  }
   el.optAnimation.addEventListener('click', () => { settings.animationStyle = settings.animationStyle === 'liquid' ? 'circle' : 'liquid'; saveSettings(); renderStart(); });
   el.optTheme.addEventListener('click', () => {
     settings.theme = settings.theme === 'light' ? 'dark' : 'light';
@@ -480,7 +500,7 @@
   function initAudio() {
     // Create/resume the context if EITHER feature wants sound. Must run inside a
     // user gesture (the Start tap) — iOS Safari blocks audio otherwise.
-    if (!settings.sound && !settings.soundscape) return;
+    if (!settings.sound && settings.bgTrack === 'off') return;
     ensureAudioCtx();
   }
 
@@ -526,257 +546,180 @@
   }
 
   /* =======================================================
-     AMBIENT SOUNDSCAPE — synthesized, breath-linked, optional
-     A warm pure-sine open chord (root + fifth + octave) plus a soft
-     filtered-noise "air" wash and a slow swell, through a morphing
-     low-pass and lush reverb. Brightness follows the breath "fullness"
-     computed from the SAME single timer as the visuals, so it can never
-     drift. Everything ramps gently — no hard jumps.
+     BACKGROUND MUSIC — looping ambient MP3 tracks (user-chosen)
+     Streamed via HTMLAudio (low memory) and routed through Web Audio
+     gain nodes so volume/mute work on iOS (where element.volume is
+     read-only). Looped seamlessly by crossfading between two players
+     near the loop seam, with gentle master fade-in/out. Used for both
+     the in-settings preview and in-session playback (never overlapping).
      ======================================================= */
-  const soundscape = { active: false, stopping: false, nodes: null, teardownTimer: 0 };
+  const TRACKS = [
+    { id: 'leberch',   name: 'Meditation — Leberch',   src: 'audio/meditation-leberch.mp3' },
+    { id: 'starostin', name: 'Meditation — Starostin', src: 'audio/meditation-starostin.mp3' },
+  ];
+  function trackById(id) { return TRACKS.find((t) => t.id === id) || null; }
 
   // Master mute is session-transient (resets each session) — it silences
-  // everything instantly without changing the user's cue/soundscape prefs.
+  // everything instantly without changing the user's preferences.
   let muted = false;
 
-  const SS = {
-    filterMin: 300,   // Hz, fully exhaled (closed, warm)
-    filterMax: 1400,  // Hz, fully inhaled (open, brighter) — gentle range
-    detuneRise: 36,   // cents of subtle pitch rise at full inhale
-    padBase: 0.62,    // resting pad level
-    padSwell: 0.12,   // extra pad level at full inhale (soft volume swell)
-    noiseBase: 0.018, // resting level of the soft "air" wash
-    noiseSwell: 0.022,// extra air toward full inhale
-    lfoRate: 0.05,    // Hz — a ~20s slow swell so the pad feels alive
-    lfoDepth: 0.05,   // depth of that swell
-    smoothing: 0.28,  // setTargetAtTime time constant (s) — gentle, removes stepping
-    masterCeiling: 0.5, // volume slider (0..1) scales within this gentle ceiling
+  const XFADE = 2.5; // seconds — crossfade length at the loop seam
+  const music = {
+    playing: false,     // audibly playing right now
+    wanted: false,      // user wants music this session (survives pause)
+    respectMute: false, // session playback honours mute; preview doesn't
+    trackId: null,
+    els: [], nodes: [], gains: [], // two crossfading players (2nd created lazily)
+    master: null,
+    cur: 0,
+    monitorId: 0,
+    teardownTimer: 0,
+    xfadeArmed: false,
   };
 
-  function masterVolumeTarget() {
-    return clamp(settings.soundscapeVolume, 0, 1) * SS.masterCeiling;
+  function musicTarget() {
+    if (music.respectMute && muted) return 0.0001;
+    return Math.max(0.0001, clamp(settings.bgVolume, 0, 1)); // ceiling 1.0 (MP3s pre-mastered)
   }
-
-  // The level the soundscape should fade TO right now — honours the master mute.
-  function soundscapeAudibleTarget() {
-    return muted ? 0.0001 : masterVolumeTarget();
-  }
-
-  // A smooth synthetic impulse response → lush, spacious reverb.
-  // Slightly smoothing the noise removes the "grainy/hissy" quality and gives a
-  // softer, more cathedral-like tail. Decorrelated per channel for natural width.
-  function makeReverbIR(ctx, seconds, decay) {
-    const rate = ctx.sampleRate;
-    const len = Math.max(1, Math.floor(seconds * rate));
-    const ir = ctx.createBuffer(2, len, rate);
-    for (let ch = 0; ch < 2; ch++) {
-      const data = ir.getChannelData(ch);
-      let last = 0;
-      for (let i = 0; i < len; i++) {
-        const white = Math.random() * 2 - 1;
-        last = last + 0.35 * (white - last);          // one-pole smoothing
-        data[i] = last * Math.pow(1 - i / len, decay); // exponential decay tail
-      }
-    }
-    return ir;
-  }
-
-  // Soft, looping "air" noise — a one-pole-smoothed (pink-ish) bed that, run
-  // through the morphing low-pass, becomes a gentle ambient wash, not hiss.
-  function makeNoiseBuffer(ctx, seconds) {
-    const rate = ctx.sampleRate;
-    const len = Math.max(1, Math.floor(seconds * rate));
-    const buf = ctx.createBuffer(2, len, rate);
-    for (let ch = 0; ch < 2; ch++) {
-      const data = buf.getChannelData(ch);
-      let last = 0;
-      for (let i = 0; i < len; i++) {
-        const white = Math.random() * 2 - 1;
-        last = last + 0.02 * (white - last); // heavy smoothing → low, warm noise
-        data[i] = last * 3.2;                // make up the level the filter removed
-      }
-    }
-    return buf;
-  }
-
-  function buildSoundscape(ctx) {
-    const now = ctx.currentTime;
-    const sources = []; // everything with start()/stop(), for clean teardown
-
-    // Master = fade envelope × volume. Starts silent so fade-in never clicks.
-    const master = ctx.createGain();
-    master.gain.setValueAtTime(0.0001, now);
-    master.connect(ctx.destination);
-
-    // Morphing low-pass keeps everything warm and lets the breath "open" it.
-    const filter = ctx.createBiquadFilter();
-    filter.type = 'lowpass';
-    filter.frequency.setValueAtTime(SS.filterMin, now);
-    filter.Q.value = 0.4; // gentle, no resonant "peak"
-
-    // Dry + lush reverb split, summed at the master.
-    const dry = ctx.createGain(); dry.gain.value = 0.55;
-    const wet = ctx.createGain(); wet.gain.value = 0.7;
-    filter.connect(dry).connect(master);
-    try {
-      const convolver = ctx.createConvolver();
-      convolver.buffer = makeReverbIR(ctx, 4.0, 2.6); // longer, smoother tail
-      filter.connect(convolver); convolver.connect(wet).connect(master);
-    } catch { /* no reverb if unsupported — pad still plays dry */ }
-
-    // Pad bus sums the voices before the filter. A very slow LFO adds a gentle,
-    // living swell on top of the breath morph (skipped under reduced-motion).
-    const padBus = ctx.createGain();
-    padBus.gain.setValueAtTime(SS.padBase, now);
-    padBus.connect(filter);
-    if (!prefersReducedMotion()) {
-      const lfo = ctx.createOscillator();
-      lfo.type = 'sine';
-      lfo.frequency.value = SS.lfoRate;
-      const lfoDepth = ctx.createGain();
-      lfoDepth.gain.value = SS.lfoDepth;
-      lfo.connect(lfoDepth).connect(padBus.gain); // adds to the intrinsic gain
-      lfo.start(now);
-      sources.push(lfo);
-    }
-
-    // Warm OPEN chord (root + fifth + octave + soft twelfth, no third → neutral
-    // and spacious), pure sines with gentle detuning for a soft chorus/beating.
-    const root = 110; // A2
-    const voices = [
-      { f: root,       detune: -8, gain: 0.16 },
-      { f: root,       detune: +8, gain: 0.16 },
-      { f: root,       detune:  0, gain: 0.13 },
-      { f: root * 1.5, detune: -4, gain: 0.12 }, // fifth  (E3)
-      { f: root * 2,   detune: +4, gain: 0.12 }, // octave (A3)
-      { f: root * 3,   detune:  0, gain: 0.05 }, // twelfth (E4) — soft air for small speakers
-    ];
-    const voiceDetune = voices.map((v) => v.detune);
-    const oscs = voices.map((v) => {
-      const osc = ctx.createOscillator();
-      osc.type = 'sine';
-      osc.frequency.value = v.f;
-      osc.detune.value = v.detune;
-      const g = ctx.createGain();
-      g.gain.value = v.gain;
-      osc.connect(g).connect(padBus);
-      osc.start(now);
-      sources.push(osc);
-      return osc;
-    });
-
-    // Soft "air" wash — a quiet looping noise bed through the SAME morphing
-    // filter, so it breathes with the pad. Organic, spacious, never hissy.
-    const noiseGain = ctx.createGain();
-    noiseGain.gain.setValueAtTime(SS.noiseBase, now);
-    noiseGain.connect(filter);
-    try {
-      const noise = ctx.createBufferSource();
-      noise.buffer = makeNoiseBuffer(ctx, 3);
-      noise.loop = true;
-      noise.connect(noiseGain);
-      noise.start(now);
-      sources.push(noise);
-    } catch { /* no air layer if buffer source unsupported */ }
-
-    return { master, filter, padBus, oscs, voiceDetune, noiseGain, sources };
-  }
-
-  // Smoothly ramp the master toward a level over `seconds` (fade in/out).
-  function fadeSoundscape(toLevel, seconds) {
-    if (!soundscape.nodes || !audioCtx) return;
-    const g = soundscape.nodes.master.gain;
+  function musicFade(target, seconds) {
+    if (!music.master || !audioCtx) return;
+    const g = music.master.gain;
     const now = audioCtx.currentTime;
-    const current = Math.max(0.0001, g.value);
     g.cancelScheduledValues(now);
-    g.setValueAtTime(current, now);
-    g.linearRampToValueAtTime(Math.max(0.0001, toLevel), now + Math.max(0.05, seconds));
+    g.setValueAtTime(Math.max(0.0001, g.value), now);
+    g.linearRampToValueAtTime(Math.max(0.0001, target), now + Math.max(0.05, seconds));
   }
 
-  // Called every frame from render() with breath fullness (0 empty .. 1 full).
-  // All changes are gentle setTargetAtTime ramps, never abrupt sets.
-  function updateSoundscape(fullness) {
-    if (!soundscape.active || !soundscape.nodes || !audioCtx) return;
-    const n = soundscape.nodes;
-    const now = audioCtx.currentTime;
-    const tc = SS.smoothing;
-    // Filter cutoff rises on inhale, settles on exhale (exponential = natural for pitch/Hz).
-    const cutoff = SS.filterMin * Math.pow(SS.filterMax / SS.filterMin, fullness);
-    n.filter.frequency.setTargetAtTime(cutoff, now, tc);
-    // Subtle pitch rise.
-    const rise = SS.detuneRise * fullness;
-    n.oscs.forEach((osc, i) => osc.detune.setTargetAtTime(n.voiceDetune[i] + rise, now, tc));
-    // Soft volume swell toward full inhale.
-    n.padBus.gain.setTargetAtTime(SS.padBase + SS.padSwell * fullness, now, tc);
-    // The "air" wash opens a touch toward full inhale, then settles.
-    if (n.noiseGain) {
-      n.noiseGain.gain.setTargetAtTime(SS.noiseBase + SS.noiseSwell * fullness, now, tc);
+  // Create (lazily) one of the two crossfading players and wire it into the graph.
+  function musicEnsureElement(i) {
+    if (music.els[i]) return music.els[i];
+    const track = trackById(music.trackId);
+    if (!track || !audioCtx || !music.master) return null;
+    const a = new Audio(track.src);
+    a.preload = 'auto';
+    let node;
+    try { node = audioCtx.createMediaElementSource(a); } catch { return null; }
+    const g = audioCtx.createGain();
+    g.gain.value = (i === music.cur) ? 1.0 : 0.0001;
+    node.connect(g).connect(music.master);
+    a.addEventListener('ended', () => {
+      // Safety net: if a crossfade was missed (e.g. heavy backgrounding),
+      // restart this player rather than fall silent.
+      if (music.playing && music.els[music.cur] === a) {
+        try { a.currentTime = 0; const p = a.play(); if (p && p.catch) p.catch(() => {}); } catch {}
+      }
+    });
+    music.els[i] = a; music.nodes[i] = node; music.gains[i] = g;
+    return a;
+  }
+
+  // Poll near the loop seam and crossfade to the other player → seamless loop.
+  function musicMonitor() {
+    if (!music.playing || !audioCtx) return;
+    const a = music.els[music.cur];
+    if (!a || !a.duration || !isFinite(a.duration)) return;
+    if (a.duration - a.currentTime <= XFADE && !music.xfadeArmed) {
+      music.xfadeArmed = true;
+      musicCrossfade();
     }
   }
-
-  function teardownNodes(nodes) {
-    if (!nodes) return;
-    (nodes.sources || []).forEach((s) => { try { s.stop(); } catch {} try { s.disconnect(); } catch {} });
-    try { nodes.master.disconnect(); } catch {}
+  function musicCrossfade() {
+    if (!audioCtx || !music.master) return;
+    const now = audioCtx.currentTime;
+    const from = music.cur;
+    const to = from ^ 1;
+    const b = musicEnsureElement(to);
+    if (!b) { music.xfadeArmed = false; return; }
+    try { b.currentTime = 0; const p = b.play(); if (p && p.catch) p.catch(() => {}); } catch {}
+    const gf = music.gains[from].gain;
+    const gt = music.gains[to].gain;
+    gf.cancelScheduledValues(now); gf.setValueAtTime(Math.max(0.0001, gf.value), now);
+    gf.linearRampToValueAtTime(0.0001, now + XFADE);
+    gt.cancelScheduledValues(now); gt.setValueAtTime(Math.max(0.0001, gt.value), now);
+    gt.linearRampToValueAtTime(1.0, now + XFADE);
+    music.cur = to;
+    // Park the old player once silent, ready for the next loop.
+    setTimeout(() => {
+      const old = music.els[from];
+      if (old && music.cur !== from) { try { old.pause(); old.currentTime = 0; } catch {} }
+      music.xfadeArmed = false;
+    }, (XFADE + 0.25) * 1000);
   }
 
-  function hardStopSoundscape() {
-    clearTimeout(soundscape.teardownTimer);
-    soundscape.teardownTimer = 0;
-    teardownNodes(soundscape.nodes);
-    soundscape.nodes = null;
-    soundscape.active = false;
-    soundscape.stopping = false;
+  function musicHardStop() {
+    clearInterval(music.monitorId); music.monitorId = 0;
+    clearTimeout(music.teardownTimer); music.teardownTimer = 0;
+    music.playing = false;
+    (music.els || []).forEach((a) => { if (a) { try { a.pause(); a.src = ''; a.load(); } catch {} } });
+    try { if (music.master) music.master.disconnect(); } catch {}
+    music.master = null; music.els = []; music.nodes = []; music.gains = [];
+    music.trackId = null; music.cur = 0; music.xfadeArmed = false;
   }
 
-  function startSoundscape() {
-    if (!settings.soundscape) return;
-    initAudio();
-    if (!audioCtx) return;
-    hardStopSoundscape(); // clean slate (e.g. "Breathe again" tapped mid fade-out)
+  function musicStart(trackId, respectMute) {
+    const track = trackById(trackId);
+    if (!track || !ensureAudioCtx()) return;
+    musicHardStop(); // clean any preview / previous instance — never overlap
     try {
-      soundscape.nodes = buildSoundscape(audioCtx);
-      soundscape.active = true;
-      soundscape.stopping = false;
-      fadeSoundscape(soundscapeAudibleTarget(), 3.0); // gentle ~3s ease-in (silent if muted)
-    } catch { hardStopSoundscape(); }
+      music.master = audioCtx.createGain();
+      music.master.gain.setValueAtTime(0.0001, audioCtx.currentTime);
+      music.master.connect(audioCtx.destination);
+      music.trackId = trackId;
+      music.respectMute = respectMute;
+      music.cur = 0;
+      const a = musicEnsureElement(0);
+      if (!a) { musicHardStop(); return; }
+      music.playing = true;
+      const p = a.play(); if (p && p.catch) p.catch(() => {});
+      musicFade(musicTarget(), respectMute ? 3.0 : 1.2); // gentle ease-in
+      clearInterval(music.monitorId);
+      music.monitorId = setInterval(musicMonitor, 300);
+    } catch { musicHardStop(); }
   }
 
-  function stopSoundscape() {
-    if (!soundscape.nodes || !audioCtx) { hardStopSoundscape(); return; }
-    soundscape.active = false;   // stop the per-frame morph
-    soundscape.stopping = true;
-    fadeSoundscape(0, 2.0);      // gentle ~2s ease-out
-    const dying = soundscape.nodes;
-    clearTimeout(soundscape.teardownTimer);
-    soundscape.teardownTimer = setTimeout(() => {
-      teardownNodes(dying);
-      if (soundscape.nodes === dying) soundscape.nodes = null;
-      soundscape.stopping = false;
-      soundscape.teardownTimer = 0;
-    }, 2300);
+  function musicStop(seconds) {
+    const sec = seconds || 2.0;
+    if (!music.master) { musicHardStop(); return; }
+    music.playing = false;
+    clearInterval(music.monitorId); music.monitorId = 0;
+    musicFade(0, sec);
+    const dyingEls = music.els.slice();
+    const dyingMaster = music.master;
+    clearTimeout(music.teardownTimer);
+    music.teardownTimer = setTimeout(() => {
+      dyingEls.forEach((a) => { if (a) { try { a.pause(); a.src = ''; a.load(); } catch {} } });
+      try { dyingMaster.disconnect(); } catch {}
+      if (music.master === dyingMaster) {
+        music.master = null; music.els = []; music.nodes = []; music.gains = []; music.trackId = null;
+      }
+    }, (sec + 0.3) * 1000);
   }
 
-  function pauseSoundscape() {
-    if (!soundscape.nodes) return;
-    soundscape.active = false;   // freeze the morph
-    fadeSoundscape(0, 2.0);      // ease out while paused
+  // During-session pause/resume: fade out but keep the player ready to resume.
+  function musicPauseForSession() {
+    if (!music.master) return;
+    music.playing = false;
+    clearInterval(music.monitorId); music.monitorId = 0;
+    musicFade(0, 2.0);
+    setTimeout(() => {
+      if (!music.playing) { const a = music.els[music.cur]; if (a) { try { a.pause(); } catch {} } }
+    }, 2100);
+  }
+  function musicResumeForSession() {
+    if (!music.master || !audioCtx) return;
+    const a = music.els[music.cur];
+    if (a) { const p = a.play(); if (p && p.catch) p.catch(() => {}); }
+    music.playing = true;
+    clearInterval(music.monitorId);
+    music.monitorId = setInterval(musicMonitor, 300);
+    musicFade(musicTarget(), 1.5);
   }
 
-  function resumeSoundscape() {
-    if (!soundscape.nodes) return;
-    soundscape.active = true;
-    fadeSoundscape(soundscapeAudibleTarget(), 1.5); // ease back in (silent if muted)
-  }
-
-  // Master mute — silences cue tones (via playTone guard) and smoothly fades the
-  // soundscape, without stopping the session or losing the user's preferences.
+  // Master mute — silences cue tones (via the playTone guard) and smoothly fades
+  // the background music, without stopping the session or losing preferences.
   function setMuted(m) {
     muted = m;
-    if (soundscape.nodes && !soundscape.stopping) {
-      const target = (!muted && soundscape.active) ? masterVolumeTarget() : 0.0001;
-      fadeSoundscape(target, 0.6); // gentle, never a hard cut
-    }
+    if (music.master && music.playing) musicFade(musicTarget(), 0.6); // gentle, never a hard cut
     updateAudioButtons();
   }
 
@@ -785,8 +728,32 @@
     el.btnMute.setAttribute('aria-pressed', muted ? 'true' : 'false');
     el.btnMute.setAttribute('aria-label', muted ? 'Unmute all sound' : 'Mute all sound');
     setSwitch(el.sessOptSound, settings.sound);
-    setSwitch(el.sessOptSoundscape, settings.soundscape);
-    el.sessSoundscapeVolume.value = String(Math.round(settings.soundscapeVolume * 100));
+    const hasTrack = settings.bgTrack !== 'off';
+    setSwitch(el.sessOptMusic, music.wanted);
+    el.sessOptMusic.disabled = !hasTrack;
+    el.sessBgVolume.value = String(Math.round(settings.bgVolume * 100));
+    el.sessBgVolume.disabled = !hasTrack;
+  }
+
+  // ----- In-settings track preview (play/stop a short audition) -----
+  let previewing = false;
+  function updatePreviewBtn() {
+    const off = settings.bgTrack === 'off';
+    el.bgPreview.disabled = off;
+    el.bgPreview.textContent = previewing ? '⏹ Stop preview' : '▶ Preview';
+    el.bgPreview.setAttribute('aria-pressed', previewing ? 'true' : 'false');
+  }
+  function startPreview() {
+    if (settings.bgTrack === 'off') return;
+    musicStart(settings.bgTrack, false); // preview ignores session mute
+    previewing = true;
+    updatePreviewBtn();
+  }
+  function stopPreview() {
+    if (!previewing) return;
+    previewing = false;
+    musicStop(0.6);
+    updatePreviewBtn();
   }
 
   /* ---------- Haptics ---------- */
@@ -877,11 +844,15 @@
 
     // In-session audio controls start fresh: unmuted, panel closed.
     muted = false;
+    music.wanted = (settings.bgTrack !== 'off');
     el.audioPanel.hidden = true;
     el.btnAudioPanel.setAttribute('aria-expanded', 'false');
+    previewing = false; // any settings preview is superseded by the session
     updateAudioButtons();
 
-    startSoundscape();   // fades in gently if enabled; no-op otherwise
+    // Start the chosen background track (gentle fade-in), or ensure silence.
+    if (music.wanted) musicStart(settings.bgTrack, true);
+    else musicHardStop();
 
     el.btnPause.textContent = 'Pause';
     el.btnPause.setAttribute('aria-label', 'Pause session');
@@ -966,16 +937,6 @@
   function render() {
     const phase = session.phases[session.phaseIndex];
     const t = clamp(session.phaseElapsed / phase.dur, 0, 1);
-
-    // ----- Ambient soundscape morph (same timer source as the visuals) -----
-    // "Fullness" = how full the breath is (0 exhaled .. 1 inhaled), derived from
-    // the same eased scale the circle uses — so audio and visuals stay locked,
-    // and it works for every mode (box / coherent / 4-7-8 / custom).
-    if (soundscape.active) {
-      const scaleNow = phase.from + (phase.to - phase.from) * easeInOutSine(t);
-      const fullness = clamp((scaleNow - SCALE_MIN) / (SCALE_MAX - SCALE_MIN), 0, 1);
-      updateSoundscape(fullness);
-    }
 
     // ----- Countdown (prominent, immediate) -----
     const remaining = Math.max(1, Math.ceil((phase.dur - session.phaseElapsed) / 1000));
@@ -1079,14 +1040,14 @@
       el.phaseLabel.dataset.prev = el.phaseLabel.textContent;
       el.srAnnounce.textContent = 'Paused';
       releaseWakeLock();
-      pauseSoundscape();
+      if (music.wanted) musicPauseForSession();
     } else {
       el.btnPause.textContent = 'Pause';
       el.btnPause.setAttribute('aria-label', 'Pause session');
       el.srAnnounce.textContent = `Resumed. ${session.phases[session.phaseIndex].label}`;
       acquireWakeLock();
       session.lastTs = 0; // avoid a dt spike on resume
-      resumeSoundscape();
+      if (music.wanted) musicResumeForSession();
     }
   }
 
@@ -1128,7 +1089,7 @@
     if (session.rafId) cancelAnimationFrame(session.rafId);
     session.rafId = 0;
     releaseWakeLock();
-    stopSoundscape();   // gentle ~2s fade-out, then tears the graph down
+    musicStop(2.0);     // gentle ~2s fade-out, then releases the players
     // reset circle to resting visual
     el.breath.style.transform = '';
     el.breath.style.opacity = '';
@@ -1140,6 +1101,7 @@
      Screen switching + focus management
      ======================================================= */
   function showScreen(name) {
+    stopPreview(); // never let a settings preview bleed across screens
     const map = {
       welcome: el.screenWelcome,
       onboarding: el.screenOnboarding,
@@ -1287,7 +1249,8 @@
   }
 
   function beginSessionFlow() {
-    initAudio(); // unlock audio inside the user gesture
+    stopPreview();   // a real session supersedes any settings preview
+    initAudio();     // unlock audio inside the user gesture
     if (settings.calmCheck) {
       showCalm('before', (val) => { pendingCalmBefore = val; startSession(); });
     } else {
@@ -1566,22 +1529,22 @@
     updateAudioButtons();
   });
 
-  el.sessOptSoundscape.addEventListener('click', () => {
-    settings.soundscape = !settings.soundscape;
-    saveSettings();
-    if (settings.soundscape) {
-      startSoundscape();                       // builds + fades in (silent if muted)
-      if (session.paused) pauseSoundscape();   // stay silent until the session resumes
+  el.sessOptMusic.addEventListener('click', () => {
+    if (settings.bgTrack === 'off') return; // nothing chosen to play (toggle is disabled)
+    music.wanted = !music.wanted;
+    if (music.wanted) {
+      musicStart(settings.bgTrack, true);          // fades in (silent if muted)
+      if (session.paused) musicPauseForSession();  // stay silent until resume
     } else {
-      stopSoundscape();                        // fades out, then tears down
+      musicStop(1.5);                              // fades out, then releases
     }
     updateAudioButtons();
   });
 
-  el.sessSoundscapeVolume.addEventListener('input', () => {
-    settings.soundscapeVolume = clamp(parseInt(el.sessSoundscapeVolume.value, 10) / 100 || 0, 0, 1);
+  el.sessBgVolume.addEventListener('input', () => {
+    settings.bgVolume = clamp(parseInt(el.sessBgVolume.value, 10) / 100 || 0, 0, 1);
     saveSettings();
-    if (soundscape.active && !soundscape.stopping) fadeSoundscape(soundscapeAudibleTarget(), 0.25);
+    if (music.master && music.playing) musicFade(musicTarget(), 0.2);
   });
 
   // Keyboard: Space toggles pause during a session; Escape stops.

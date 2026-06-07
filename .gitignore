@@ -8,3 +8,6 @@ Thumbs.db
 
 # Claude Code local state (machine-specific)
 .claude/
+
+# Source audio (originals) — only the deployed copies in /audio are committed
+Ambient music/

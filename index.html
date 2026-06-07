@@ -182,16 +182,20 @@
               <button type="button" class="switch" id="opt-sound" role="switch"
                       aria-checked="true" aria-labelledby="lbl-sound"><span class="switch__dot"></span></button>
             </div>
-            <div class="toggle">
-              <span class="toggle__label" id="lbl-soundscape">Ambient soundscape</span>
-              <button type="button" class="switch" id="opt-soundscape" role="switch"
-                      aria-checked="false" aria-labelledby="lbl-soundscape"><span class="switch__dot"></span></button>
+            <div class="opt-block">
+              <span class="toggle__label" id="lbl-bg">Background sound</span>
+              <div class="segmented segmented--col" role="radiogroup" aria-labelledby="lbl-bg" id="bg-select">
+                <button type="button" class="segmented__btn" role="radio" aria-checked="true" data-track="off">Off</button>
+                <button type="button" class="segmented__btn" role="radio" aria-checked="false" data-track="leberch">Meditation — Leberch</button>
+                <button type="button" class="segmented__btn" role="radio" aria-checked="false" data-track="starostin">Meditation — Starostin</button>
+              </div>
+              <button type="button" class="btn btn--ghost btn--row" id="bg-preview" aria-pressed="false" disabled>▶ Preview</button>
             </div>
-            <div class="toggle toggle--slider" id="soundscape-volume-row">
-              <label class="toggle__label" for="opt-soundscape-volume">Soundscape volume</label>
-              <input type="range" class="slider" id="opt-soundscape-volume"
-                     min="0" max="100" step="1" value="30"
-                     aria-label="Ambient soundscape volume" />
+            <div class="toggle toggle--slider" id="bg-volume-row">
+              <label class="toggle__label" for="bg-volume">Background volume</label>
+              <input type="range" class="slider" id="bg-volume"
+                     min="0" max="100" step="1" value="50"
+                     aria-label="Background music volume" />
             </div>
             <div class="toggle">
               <span class="toggle__label" id="lbl-haptic">Haptic feedback</span>
@@ -310,14 +314,14 @@
                     aria-checked="true" aria-labelledby="lbl-sess-sound"><span class="switch__dot"></span></button>
           </div>
           <div class="toggle">
-            <span class="toggle__label" id="lbl-sess-soundscape">Soundscape</span>
-            <button type="button" class="switch" id="sess-opt-soundscape" role="switch"
-                    aria-checked="false" aria-labelledby="lbl-sess-soundscape"><span class="switch__dot"></span></button>
+            <span class="toggle__label" id="lbl-sess-music">Background music</span>
+            <button type="button" class="switch" id="sess-opt-music" role="switch"
+                    aria-checked="false" aria-labelledby="lbl-sess-music"><span class="switch__dot"></span></button>
           </div>
           <div class="toggle toggle--slider">
-            <label class="toggle__label" for="sess-soundscape-volume">Volume</label>
-            <input type="range" class="slider" id="sess-soundscape-volume"
-                   min="0" max="100" step="1" value="30" aria-label="Ambient soundscape volume" />
+            <label class="toggle__label" for="sess-bg-volume">Volume</label>
+            <input type="range" class="slider" id="sess-bg-volume"
+                   min="0" max="100" step="1" value="50" aria-label="Background music volume" />
           </div>
         </div>
       </div>

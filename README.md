@@ -16,7 +16,8 @@ designed to ask for the least attention possible.
 - **Animated welcome + onboarding** — a first-launch intro (with a gentle chime) and a quick, skippable profile (name, age range, goal) that suggests a recommended mode. Replayable from settings.
 - **Encouragement-only gamification** — points per session and a forgiving **Rhythm** (the days you keep coming back) that *only* builds up: a missed day pauses it, never resets, no guilt. Structured for a future (local) leaderboard.
 - **Honest end-of-session dashboard** — real personal stats (session minutes, totals, lifetime, rhythm, points), an effective-dose ring toward the research-backed ~5–10 min/day, general-info consistency milestones, and an optional 1–5 calm self-check with your own before/after delta. No invented biomarkers.
-- **Local data export** — download your full history as JSON or CSV (with a readme header). Everything stays on your device; nothing is ever uploaded.
+- **Local data export** — a plain-language **readable summary** and a **CSV** (totals on top, each session in your local time with a Morning/Afternoon/Evening/Night label). Copy, share, or download. Everything stays on your device; nothing is uploaded.
+- **Gentle share** — an optional, quiet "Invite a friend to breathe" on the dashboard with a warm, non-competitive message and the app link (Web Share API, clipboard fallback). No scores, no pressure.
 
 An animated guide circle (or liquid fill) shows your breathing in real time. The phase label,
 per-phase countdown, and breathing animation are all driven from **one `requestAnimationFrame` loop**,
@@ -169,7 +170,8 @@ Legend: ✅ done · 🟡 partial / caveat · ⬜ skipped
 | Forgiving "Rhythm" | ✅ | Labelled **Rhythm** (not "streak") with a calm one-line description, since a streak implies something you can break. Only builds up; a missed day pauses it (never resets, no guilt); "let's pick up your rhythm" after a gap. Structured (points + rhythm) for a future local leaderboard. |
 | Honest dashboard | ✅ | Real stats only (session/lifetime/sessions/rhythm/points) + effective-dose ring to ~5–10 min + general-info weekly milestone. **No fabricated biomarker** — the only "calm" figure is the user's own 1–5 self-report, always labeled as such. |
 | Optional calm check | ✅ | 1–5 before/after with Skip; stores both; shows the user's own delta and running average. Toggle in Options. |
-| Data export (JSON + CSV) | ✅ | Both formats with a readme/header explaining every field; uses the share sheet where available, else downloads. |
+| Data export (readable summary + CSV) | ✅ | JSON dropped (looked like code). A friendly plain-text summary (sessions, total time, rhythm, points, avg calm change, top mode, usual time of day) plus a CSV with totals on top, local readable timestamps + part-of-day, and "Xm Ys" durations. Timezone via `Intl.DateTimeFormat().resolvedOptions().timeZone` (never GPS). Copy / share / download. |
+| Gentle share | ✅ | Quiet underlined link on the dashboard (44px tap target, `aria-label`), warm non-competitive message + app link via Web Share API, clipboard fallback. |
 | Data stays local | ✅ | All profile/progress in `localStorage`; an on-screen note on onboarding and in **Profile & data** states it's never uploaded. |
 | New screens: contrast / tap targets / ARIA | ✅ | Contrast recomputed from the palette — text 11.9–15.8:1, dim 6.1–9.6:1, selected chips 4.6–8.6:1, dose ring vs track 4.2–6.1:1 (all ≥ AA). Chips 48px, calm buttons 52px, inputs 48px. Chips/calm use `role`+`aria-checked`/`aria-label`; inputs labeled; dialog has `role="dialog"`/`aria-modal`. |
 | Calm-check modal focus trap | 🟡 | Opens focused, `Esc` skips, backdrop dims — but it does not fully trap Tab to the dialog. Low-stakes (a 1–5 self-check); can harden if desired. |

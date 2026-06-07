@@ -558,6 +558,16 @@ body {
 .stats--grid .stat__v { font-size: 1.3rem; }
 
 .rhythm-note { color: var(--text-dim); font-size: 0.82rem; line-height: 1.45; margin: calc(-1 * var(--s2)) 0 var(--s3); text-align: center; opacity: 0.9; }
+
+/* Quiet, unobtrusive share invitation on the dashboard */
+.share-link {
+  display: inline-flex; align-items: center; justify-content: center; gap: 0.4rem;
+  min-height: var(--tap-ios); margin: var(--s3) auto 0; padding: 0 var(--s2);
+  background: none; border: 0; color: var(--text-dim); font: inherit; font-size: 0.95rem;
+  cursor: pointer; border-radius: var(--radius);
+  text-decoration: underline; text-underline-offset: 3px; text-decoration-thickness: 1px;
+}
+.share-link:hover { color: var(--text); }
 .end__milestone { color: var(--text-dim); font-size: 0.95rem; margin: 0 0 var(--s2); line-height: 1.45; }
 .end__calm { color: var(--text); font-size: 1rem; margin: 0 0 var(--s3); font-weight: 500; }
 

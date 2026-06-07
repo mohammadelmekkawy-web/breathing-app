@@ -326,8 +326,9 @@
     greeting: $('greeting'),
     optCalm: $('opt-calm'),
     btnEditProfile: $('btn-edit-profile'),
-    btnExportJson: $('btn-export-json'),
+    btnExportSummary: $('btn-export-summary'),
     btnExportCsv: $('btn-export-csv'),
+    btnShare: $('btn-share'),
     btnReplayWelcome: $('btn-replay-welcome'),
 
     // Dashboard extras
@@ -1322,63 +1323,133 @@
   /* =======================================================
      Data export (JSON / CSV) — local file, with a readme header
      ======================================================= */
-  function buildExportObject() {
-    return {
-      _readme: {
-        app: 'Breathe',
-        exportedAt: new Date().toISOString(),
-        privacy: 'This data is stored only on your device. The file was created on-device and is never uploaded.',
-        fields: {
-          'profile.name': 'Your name (for personalization)',
-          'profile.age': 'Your selected age range',
-          'profile.goals': 'Your selected goals (one or more)',
-          points: 'Total encouragement points',
-          'rhythm.current': 'Your rhythm — the days you keep coming back; only grows, a missed day pauses it and never resets to zero',
-          'rhythm.longest': 'Highest rhythm reached',
-          'rhythm.lastDate': 'Last practice day (local YYYY-MM-DD)',
-          'sessions[].date': 'Practice day (local YYYY-MM-DD)',
-          'sessions[].ts': 'Timestamp (epoch milliseconds)',
-          'sessions[].mode': 'Internal mode id',
-          'sessions[].modeLabel': 'Human-readable mode',
-          'sessions[].durationMs': 'Session length in milliseconds',
-          'sessions[].minutes': 'Session length in minutes',
-          'sessions[].cycles': 'Completed cycles (breaths for coherent)',
-          'sessions[].points': 'Points earned that session',
-          'sessions[].calmBefore': 'Your 1–5 calm self-rating before (or null)',
-          'sessions[].calmAfter': 'Your 1–5 calm self-rating after (or null)',
-        },
-      },
-      profile: { name: profile.name, age: profile.age, goals: profile.goals },
-      points: progress.points,
-      rhythm: progress.streak,
-      sessions: progress.history,
-    };
+  // ---- Export helpers (all local; timezone read automatically, never GPS) ----
+  const TZ = (() => { try { return Intl.DateTimeFormat().resolvedOptions().timeZone || ''; } catch { return ''; } })();
+  const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+  function formatLong(ms) { // "1h 5m" / "5m 30s" / "45s"
+    const total = Math.round(ms / 1000);
+    const h = Math.floor(total / 3600);
+    const m = Math.floor((total % 3600) / 60);
+    const s = total % 60;
+    if (h > 0) return m > 0 ? `${h}h ${m}m` : `${h}h`;
+    if (m > 0) return s > 0 ? `${m}m ${s}s` : `${m}m`;
+    return `${s}s`;
+  }
+  function localStamp(ts) { // "07 Jun 2026, 6:59 AM" — device's own timezone
+    const d = new Date(ts);
+    const day = String(d.getDate()).padStart(2, '0');
+    const h24 = d.getHours();
+    const h12 = ((h24 + 11) % 12) + 1;
+    const min = String(d.getMinutes()).padStart(2, '0');
+    return `${day} ${MONTHS[d.getMonth()]} ${d.getFullYear()}, ${h12}:${min} ${h24 < 12 ? 'AM' : 'PM'}`;
+  }
+  function partOfDay(ts) {
+    const h = new Date(ts).getHours();
+    if (h >= 5 && h < 12) return 'Morning';
+    if (h >= 12 && h < 17) return 'Afternoon';
+    if (h >= 17 && h < 21) return 'Evening';
+    return 'Night';
+  }
+  function topByCount(items, keyFn) {
+    const tally = {};
+    items.forEach((it) => { const k = keyFn(it); if (k) tally[k] = (tally[k] || 0) + 1; });
+    let best = null, bestN = 0;
+    Object.keys(tally).forEach((k) => { if (tally[k] > bestN) { best = k; bestN = tally[k]; } });
+    return best;
   }
   function csvCell(v) {
     const s = String(v == null ? '' : v);
     return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
   }
+
+  // CSV: totals at the top, then one readable row per session (local time).
   function buildCSV() {
-    const lines = [];
-    lines.push('# Breathe practice history — stored locally on your device, never uploaded.');
-    lines.push('# Columns: date (local), time_iso, mode, duration_min, cycles, points, calm_before (1-5 self-report), calm_after (1-5 self-report)');
-    lines.push('date,time_iso,mode,duration_min,cycles,points,calm_before,calm_after');
-    progress.history.forEach((h) => {
-      lines.push([
-        h.date,
-        new Date(h.ts).toISOString(),
-        csvCell(h.modeLabel || h.mode),
-        (h.durationMs / 60000).toFixed(1),
-        h.cycles,
-        h.points,
-        h.calmBefore == null ? '' : h.calmBefore,
-        h.calmAfter == null ? '' : h.calmAfter,
+    const h = progress.history;
+    const delta = calmDeltaAvg();
+    const topMode = topByCount(h, (x) => x.modeLabel || modeLabelFor(x.mode)) || '—';
+    const L = [];
+    L.push('# Breathe — your practice history. Stored only on your device; never uploaded.');
+    if (TZ) L.push(`# Times are shown in your timezone: ${TZ}`);
+    L.push('#');
+    L.push('# TOTALS');
+    L.push(`#   Sessions: ${h.length}`);
+    L.push(`#   Total practice: ${formatLong(lifetimeMs())}`);
+    L.push(`#   Rhythm: ${progress.streak.current} day${progress.streak.current === 1 ? '' : 's'}`);
+    L.push(`#   Points: ${progress.points}`);
+    L.push(`#   Avg calm change: ${delta ? (delta.avg >= 0 ? '+' : '') + (Math.round(delta.avg * 10) / 10) + ' (1–5 self-report, ' + delta.n + ' rated)' : 'not enough data yet'}`);
+    L.push(`#   Most-used: ${topMode}`);
+    L.push('#');
+    L.push('when,part_of_day,mode,duration,cycles,points,calm_before,calm_after');
+    h.forEach((x) => {
+      L.push([
+        csvCell(localStamp(x.ts)),
+        partOfDay(x.ts),
+        csvCell(x.modeLabel || modeLabelFor(x.mode)),
+        formatLong(x.durationMs),
+        x.cycles,
+        x.points,
+        x.calmBefore == null ? '' : x.calmBefore,
+        x.calmAfter == null ? '' : x.calmAfter,
       ].join(','));
     });
-    lines.push('');
-    lines.push(`# Totals: sessions=${progress.history.length}, points=${progress.points}, current_rhythm=${progress.streak.current}, lifetime_min=${(lifetimeMs() / 60000).toFixed(1)}`);
-    return lines.join('\n');
+    return L.join('\n');
   }
+
+  // Plain-language summary anyone can read at a glance.
+  function buildSummary() {
+    const h = progress.history;
+    const name = (profile.name || '').trim();
+    const delta = calmDeltaAvg();
+    const topMode = topByCount(h, (x) => x.modeLabel || modeLabelFor(x.mode));
+    const topTime = topByCount(h, (x) => partOfDay(x.ts));
+    const L = [];
+    L.push(name ? `${name}'s Breathe summary` : 'Your Breathe summary');
+    L.push(`(${localStamp(Date.now())})`);
+    L.push('');
+    if (h.length === 0) {
+      L.push('No sessions yet — finish one and your summary will appear here.');
+    } else {
+      L.push(`You've completed ${h.length} session${h.length === 1 ? '' : 's'} and spent ${formatLong(lifetimeMs())} breathing in total.`);
+      L.push(`Your rhythm is ${progress.streak.current} day${progress.streak.current === 1 ? '' : 's'} — the days you keep coming back. It only grows; miss one and it simply pauses.`);
+      L.push(`You've earned ${progress.points} points along the way.`);
+      if (delta && delta.n > 0) {
+        const a = Math.round(delta.avg * 10) / 10;
+        if (a > 0) L.push(`On the ${delta.n} session${delta.n === 1 ? '' : 's'} you checked in, you felt about ${a} point${a === 1 ? '' : 's'} calmer afterward (your own 1–5 rating).`);
+        else if (a === 0) L.push('On the sessions you checked in, your calm felt about the same before and after.');
+        else L.push("Your calm check-ins vary day to day — and that's completely okay.");
+      }
+      if (topMode) L.push(`Your go-to practice is ${topMode}.`);
+      if (topTime) L.push(`You usually practice in the ${topTime}.`);
+    }
+    L.push('');
+    L.push('🔒 Created on your device. Never uploaded.');
+    return L.join('\n');
+  }
+  // ---- Gentle share: a warm invitation, never a competitive flex ----
+  const SHARE_URL = 'https://mohammadelmekkawy-web.github.io/breathing-app/';
+  function shareFlash() {
+    if (!el.btnShare) return;
+    const prev = el.btnShare.dataset.label || el.btnShare.textContent;
+    el.btnShare.dataset.label = prev;
+    el.btnShare.textContent = 'Invitation copied ✓';
+    clearTimeout(shareFlash._t);
+    shareFlash._t = setTimeout(() => { el.btnShare.textContent = el.btnShare.dataset.label; }, 2200);
+  }
+  async function shareInvite() {
+    const text = "I've been taking a few quiet minutes to breathe and feel calmer lately — come try it with me 🌿";
+    try {
+      if (typeof navigator.share === 'function') {
+        await navigator.share({ title: 'Breathe', text, url: SHARE_URL });
+        return; // shared (or cancelled) — nothing more to do
+      }
+    } catch { return; } // user dismissed the share sheet
+    // Fallbacks where Web Share isn't available:
+    const full = `${text}\n${SHARE_URL}`;
+    try { await navigator.clipboard.writeText(full); shareFlash(); return; } catch {}
+    openExport('breathe-invite.txt', full, 'text/plain'); // last resort: show it to copy
+  }
+
   function downloadFile(filename, text, type) {
     try {
       const blob = new Blob([text], { type });
@@ -1491,8 +1562,9 @@
   el.optCalm.addEventListener('click', () => { settings.calmCheck = !settings.calmCheck; saveSettings(); renderStart(); });
   el.btnEditProfile.addEventListener('click', () => { renderOnboarding(); showScreen('onboarding'); });
   el.btnReplayWelcome.addEventListener('click', () => { armWelcomeChime(); showScreen('welcome'); });
-  el.btnExportJson.addEventListener('click', () => openExport(`breathe-data-${todayStr()}.json`, JSON.stringify(buildExportObject(), null, 2), 'application/json'));
+  el.btnExportSummary.addEventListener('click', () => openExport(`breathe-summary-${todayStr()}.txt`, buildSummary(), 'text/plain'));
   el.btnExportCsv.addEventListener('click', () => openExport(`breathe-data-${todayStr()}.csv`, buildCSV(), 'text/csv'));
+  if (el.btnShare) el.btnShare.addEventListener('click', shareInvite);
 
   // ----- Export sheet -----
   el.exportCopy.addEventListener('click', copyExport);

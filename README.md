@@ -10,7 +10,7 @@ designed to ask for the least attention possible.
 - **Custom patterns** — build your own duration combinations and save them locally.
 - **Goal-based mode selection** — cards describe the benefit ("feel in control", "calm down") instead of technique names.
 - **Beginner guidance** — recommended default settings and first-time hint on startup.
-- **Liquid-fill animation** — optional visual style: a vessel that fills/drains with smooth liquid instead of circle scaling.
+- **Glowing orb visual** — optional alternative to the circle: a round vessel where soft blue liquid (clipped strictly inside) rises on the inhale and falls on the exhale, with a gently swaying wavy surface, a soft inner glow, and white/warm-yellow particles that appear and drift as it fills — a serene "galaxy in a bubble." Canvas-rendered and modest in cost; reduced-motion shows a calm flat fill with no waves or particles.
 - **Background meditation music** — optional, off by default. Choose one of two looping ambient MP3 tracks; preview them in settings before committing. Seamlessly looped (crossfade at the seam) with gentle fade in/out, layered under the phase-change cue tones so the app stays usable eyes-closed. Cached after first play for offline use.
 - **In-session audio controls** — always-visible mute plus a one-tap panel (cue tones, **ambient track picker**, volume). Switching the ambient track mid-session crossfades smoothly without interrupting the breathing.
 - **Animated welcome + onboarding** — a first-launch intro (with a gentle chime) and a quick, skippable profile (name, age range, goal) that suggests a recommended mode. Replayable from settings.

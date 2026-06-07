@@ -301,7 +301,7 @@
     beginnerHint: $('beginner-hint'),
     cyclesRecommended: $('cycles-recommended'),
     liquidContainer: $('liquid-container'),
-    liquidFillRect: document.querySelector('.liquid-fill__rect'),
+    orbCanvas: $('orb-canvas'),
     phaseLabelLiquid: $('phase-label-liquid'),
     countLiquid: $('count-liquid'),
     optAnimation: $('opt-animation'),
@@ -994,6 +994,164 @@
     session.rafId = requestAnimationFrame(tick);
   }
 
+  /* =======================================================
+     LIQUID — a glowing magical orb (canvas)
+     A circular vessel; blue liquid clipped strictly inside it, rising/falling
+     with the breath. Soft wavy surface, gentle inner glow, and white/warm-yellow
+     particles that appear as the liquid rises (more when fuller) and drift/twinkle
+     slowly. prefers-reduced-motion → flat calm fill, no waves or particles.
+     ======================================================= */
+  const orb = { canvas: null, ctx: null, particles: null, spriteWhite: null, spriteWarm: null };
+
+  function makeGlowSprite(rgb) {
+    const c = document.createElement('canvas');
+    const S = 32; c.width = S; c.height = S;
+    const g = c.getContext('2d');
+    const grad = g.createRadialGradient(S / 2, S / 2, 0, S / 2, S / 2, S / 2);
+    grad.addColorStop(0, `rgba(${rgb},1)`);
+    grad.addColorStop(0.35, `rgba(${rgb},0.55)`);
+    grad.addColorStop(1, `rgba(${rgb},0)`);
+    g.fillStyle = grad; g.fillRect(0, 0, S, S);
+    return c;
+  }
+  function buildOrbParticles() {
+    const arr = [];
+    for (let i = 0; i < 34; i++) {
+      arr.push({
+        hf: 0.04 + Math.random() * 0.92,        // height fraction (0 bottom .. 1 top)
+        nx: (Math.random() * 2 - 1) * 0.82,      // horizontal, fraction of half-width
+        warm: Math.random() < 0.42,              // white vs warm-yellow
+        size: 0.012 + Math.random() * 0.02,      // radius as fraction of orb R
+        baseA: 0.5 + Math.random() * 0.5,
+        tws: 0.5 + Math.random() * 1.1, twp: Math.random() * 6.28, // twinkle
+        dsx: 0.15 + Math.random() * 0.3, phx: Math.random() * 6.28, // drift
+        dsy: 0.12 + Math.random() * 0.25, phy: Math.random() * 6.28,
+      });
+    }
+    return arr;
+  }
+  function ensureOrb() {
+    if (orb.ctx) return true;
+    if (!el.orbCanvas) return false;
+    orb.canvas = el.orbCanvas;
+    orb.ctx = el.orbCanvas.getContext('2d');
+    if (!orb.ctx) return false;
+    orb.particles = buildOrbParticles();
+    orb.spriteWhite = makeGlowSprite('255,248,232'); // soft warm white
+    orb.spriteWarm = makeGlowSprite('255,221,150');  // warm yellow
+    return true;
+  }
+
+  function drawOrb(fill, timeMs) {
+    const c = orb.canvas, ctx = orb.ctx;
+    const cssW = c.clientWidth, cssH = c.clientHeight;
+    if (!cssW || !cssH) return;
+    const dpr = Math.min(2, window.devicePixelRatio || 1);
+    const W = Math.round(cssW * dpr), H = Math.round(cssH * dpr);
+    if (c.width !== W || c.height !== H) { c.width = W; c.height = H; }
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.clearRect(0, 0, W, H);
+
+    const reduced = prefersReducedMotion();
+    const time = timeMs / 1000;
+    const cx = W / 2, cy = H / 2, R = Math.min(W, H) / 2 - dpr * 2;
+    const surfaceY = cy + R - fill * 2 * R; // fill 0 → bottom, fill 1 → top
+    const amp = reduced ? 0 : R * 0.045;
+    const waveAt = (x) => reduced ? surfaceY
+      : surfaceY + Math.sin((x / R) * 2.2 + time * 0.9) * amp
+                 + Math.sin((x / R) * 1.3 - time * 0.6) * amp * 0.6;
+
+    // Everything liquid-side is clipped strictly inside the circle.
+    ctx.save();
+    ctx.beginPath(); ctx.arc(cx, cy, R, 0, Math.PI * 2); ctx.clip();
+
+    // Faint empty interior so the sphere reads even when empty.
+    const bg = ctx.createRadialGradient(cx, cy - R * 0.25, R * 0.15, cx, cy, R);
+    bg.addColorStop(0, 'rgba(42,62,88,0.30)');
+    bg.addColorStop(1, 'rgba(12,20,30,0.55)');
+    ctx.fillStyle = bg; ctx.fillRect(cx - R, cy - R, 2 * R, 2 * R);
+
+    if (fill > 0.005) {
+      // Liquid body (wavy top → bottom).
+      const steps = 26;
+      ctx.beginPath();
+      ctx.moveTo(cx - R, cy + R + 2);
+      ctx.lineTo(cx - R, waveAt(cx - R));
+      for (let i = 0; i <= steps; i++) {
+        const x = cx - R + (2 * R) * (i / steps);
+        ctx.lineTo(x, waveAt(x));
+      }
+      ctx.lineTo(cx + R, cy + R + 2);
+      ctx.closePath();
+      const lg = ctx.createLinearGradient(0, surfaceY - R * 0.25, 0, cy + R);
+      lg.addColorStop(0, 'rgba(126,186,228,0.95)');  // brighter near surface (inner glow)
+      lg.addColorStop(0.5, 'rgba(58,120,168,0.96)');
+      lg.addColorStop(1, 'rgba(28,68,108,0.97)');     // deeper at the bottom
+      ctx.fillStyle = lg; ctx.fill();
+
+      // Soft inner luminosity (subtle bloom), and a gentle surface highlight.
+      if (!reduced) {
+        ctx.globalCompositeOperation = 'lighter';
+        const gy = Math.max(surfaceY, cy) + R * 0.1;
+        const gr = ctx.createRadialGradient(cx, gy, R * 0.04, cx, gy, R * 0.95);
+        gr.addColorStop(0, 'rgba(120,190,235,0.16)');
+        gr.addColorStop(1, 'rgba(120,190,235,0)');
+        ctx.fillStyle = gr; ctx.fillRect(cx - R, cy - R, 2 * R, 2 * R);
+
+        if (fill < 0.99) {
+          ctx.beginPath();
+          for (let i = 0; i <= steps; i++) {
+            const x = cx - R + (2 * R) * (i / steps);
+            if (i === 0) ctx.moveTo(x, waveAt(x)); else ctx.lineTo(x, waveAt(x));
+          }
+          ctx.strokeStyle = 'rgba(178,220,248,0.45)';
+          ctx.lineWidth = Math.max(1, dpr);
+          ctx.stroke();
+        }
+        ctx.globalCompositeOperation = 'source-over';
+      }
+
+      // Magical particles — only those submerged (more appear as the liquid rises).
+      if (!reduced) {
+        ctx.globalCompositeOperation = 'lighter';
+        for (const p of orb.particles) {
+          if (p.hf >= fill) continue;
+          const fadeIn = Math.min(1, (fill - p.hf) / 0.10); // ease in as the surface passes
+          const dyN = 1 - 2 * p.hf;
+          const halfW = Math.sqrt(Math.max(0, 1 - dyN * dyN));
+          const px = cx + p.nx * halfW * R + Math.sin(time * p.dsx + p.phx) * R * 0.02;
+          const py = cy + dyN * R + Math.sin(time * p.dsy + p.phy) * R * 0.02;
+          const tw = 0.4 + 0.6 * (0.5 + 0.5 * Math.sin(time * p.tws + p.twp));
+          const size = p.size * R;
+          ctx.globalAlpha = Math.min(1, fadeIn * tw * p.baseA);
+          ctx.drawImage(p.warm ? orb.spriteWarm : orb.spriteWhite, px - size, py - size, size * 2, size * 2);
+        }
+        ctx.globalAlpha = 1;
+        ctx.globalCompositeOperation = 'source-over';
+      }
+    }
+
+    ctx.restore(); // remove clip
+
+    // Soft rim that defines the orb (gentle glow, not a harsh edge).
+    ctx.save();
+    ctx.beginPath(); ctx.arc(cx, cy, R, 0, Math.PI * 2);
+    ctx.strokeStyle = 'rgba(132,188,228,0.35)';
+    ctx.lineWidth = Math.max(1, dpr * 1.2);
+    if (!reduced) { ctx.shadowColor = 'rgba(120,182,226,0.5)'; ctx.shadowBlur = dpr * 10; }
+    ctx.stroke();
+    ctx.restore();
+
+    // Gentle center depth so the white phase/count text stays legible at any fill.
+    ctx.save();
+    ctx.beginPath(); ctx.arc(cx, cy, R, 0, Math.PI * 2); ctx.clip();
+    const vg = ctx.createRadialGradient(cx, cy, R * 0.04, cx, cy, R * 0.62);
+    vg.addColorStop(0, 'rgba(8,14,24,0.34)');
+    vg.addColorStop(1, 'rgba(8,14,24,0)');
+    ctx.fillStyle = vg; ctx.fillRect(cx - R, cy - R, 2 * R, 2 * R);
+    ctx.restore();
+  }
+
   function render() {
     const phase = session.phases[session.phaseIndex];
     const t = clamp(session.phaseElapsed / phase.dur, 0, 1);
@@ -1011,26 +1169,12 @@
     el.liquidContainer.hidden = !useLiquid;
 
     if (useLiquid) {
-      // ----- Liquid Fill Animation -----
-      // Determine fill level: for inhale phases, fill goes up; for exhale, fills go down
-      let fillLevel;
-      if (phase.label === 'Inhale') {
-        fillLevel = t;  // 0 to 1 as inhale progresses
-      } else if (phase.label === 'Exhale') {
-        fillLevel = 1 - t;  // 1 to 0 as exhale progresses
-      } else {
-        // Hold phases: maintain current level
-        fillLevel = phase.from >= SCALE_MAX ? 1 : 0;
-      }
-      fillLevel = clamp(fillLevel, 0, 1);
-      
-      // Update liquid height (vessel is 240px tall, so fill from bottom)
-      const maxHeight = 200;  // vessel height
-      const fillHeight = maxHeight * (1 - fillLevel);
-      if (el.liquidFillRect) {
-        el.liquidFillRect.setAttribute('y', fillHeight);
-        el.liquidFillRect.setAttribute('height', maxHeight - fillHeight);
-      }
+      // ----- Glowing magical orb -----
+      // Fill = eased breath "fullness" from the SAME single timer, so it stays
+      // locked to the breath and works for every mode (incl. holds & custom).
+      const scaleNow = phase.from + (phase.to - phase.from) * easeInOutSine(t);
+      const fullness = clamp((scaleNow - SCALE_MIN) / (SCALE_MAX - SCALE_MIN), 0, 1);
+      if (ensureOrb()) drawOrb(fullness, performance.now());
     } else {
       // ----- Circle Animation -----
       if (prefersReducedMotion()) {

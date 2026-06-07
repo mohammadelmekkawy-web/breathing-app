@@ -256,23 +256,10 @@
           </div>
         </div>
 
-        <!-- Liquid fill animation (alternative) -->
+        <!-- Liquid: a glowing magical orb (alternative visual). Canvas-rendered
+             so the liquid is strictly clipped inside the circle. -->
         <div class="liquid-container" id="liquid-container" hidden>
-          <svg class="liquid-fill" viewBox="0 0 200 240" aria-hidden="true" focusable="false">
-            <!-- Vessel outline -->
-            <defs>
-              <mask id="liquid-mask">
-                <rect width="200" height="240" fill="white" />
-                <path id="liquid-wave" d="" fill="black" />
-              </mask>
-            </defs>
-            <!-- Vessel background (empty) -->
-            <path class="liquid-vessel" d="M 40 20 L 50 200 Q 100 210 150 200 L 160 20 Q 100 0 40 20 Z" />
-            <!-- Liquid fill -->
-            <rect class="liquid-fill__rect" x="0" y="0" width="200" height="120" mask="url(#liquid-mask)" />
-            <!-- Vessel outline on top -->
-            <path class="liquid-vessel-outline" d="M 40 20 L 50 200 Q 100 210 150 200 L 160 20 Q 100 0 40 20 Z" fill="none" />
-          </svg>
+          <canvas class="orb-canvas" id="orb-canvas" aria-hidden="true"></canvas>
           <div class="liquid-text">
             <span class="breath__phase" id="phase-label-liquid">Ready</span>
             <span class="breath__count" id="count-liquid" aria-hidden="true"></span>

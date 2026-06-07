@@ -322,7 +322,7 @@
     screenLearn: $('screen-learn'),
     learnScene: $('learn-scene'),
     learnOrbFill: $('learn-orb-fill'),
-    learnChestFill: $('learn-chest-fill'),
+    learnChestGlow: $('learn-chest-glow'),
     learnPhase: $('learn-phase'),
     learnCue: $('learn-cue'),
     learnSteps: $('learn-steps'),
@@ -1328,9 +1328,10 @@
     // Orb (viewBox 120): liquid rises from the bottom.
     el.learnOrbFill.setAttribute('y', (120 - fill * 120).toFixed(1));
     el.learnOrbFill.setAttribute('height', (fill * 120).toFixed(1));
-    // Chest/lungs (viewBox 160): fill clipped to the torso shape.
-    el.learnChestFill.setAttribute('y', (160 - fill * 66).toFixed(1));
-    el.learnChestFill.setAttribute('height', (fill * 66 + 4).toFixed(1));
+    // Chest/lungs glow: brightens and gently swells as the breath fills.
+    el.learnChestGlow.style.opacity = (0.12 + 0.88 * fill).toFixed(3);
+    el.learnChestGlow.style.transform =
+      'translate(-50%, -50%) scale(' + (0.7 + 0.5 * fill).toFixed(3) + ')';
   }
 
   function setLearnPhase(phase, label, cue) {

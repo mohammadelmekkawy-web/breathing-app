@@ -112,43 +112,16 @@
             <circle cx="60" cy="60" r="56" fill="none" stroke="#efd49a" stroke-width="3"/>
           </svg>
 
-          <!-- The person (side profile): air in the nose, out the mouth; chest = lungs filling -->
-          <svg class="learn-face" viewBox="0 0 140 160" aria-hidden="true" focusable="false">
-            <defs>
-              <linearGradient id="learnFillChest" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0" stop-color="#7ebae4"/>
-                <stop offset="1" stop-color="#2b5c84"/>
-              </linearGradient>
-              <clipPath id="learnChestClip">
-                <path d="M26,160 C26,118 42,96 70,96 C98,96 114,118 114,160 Z"/>
-              </clipPath>
-            </defs>
-            <!-- chest fill (the lungs) -->
-            <g clip-path="url(#learnChestClip)">
-              <rect id="learn-chest-fill" x="0" y="160" width="140" height="0" fill="url(#learnFillChest)" opacity="0.92"/>
-            </g>
-            <!-- body + head outline (symbolic, line-art) -->
-            <g fill="none" stroke="currentColor" stroke-width="3" stroke-linejoin="round" stroke-linecap="round">
-              <path d="M26,160 C26,118 42,96 70,96 C98,96 114,118 114,160"/>
-              <rect x="62" y="74" width="16" height="24" rx="7"/>
-              <circle cx="70" cy="46" r="30"/>
-              <path d="M100,44 L110,50 L100,56"/>            <!-- nose -->
-              <path d="M90,64 L101,63"/>                       <!-- mouth -->
-            </g>
-            <circle cx="83" cy="41" r="2.6" fill="currentColor"/>  <!-- eye -->
-            <!-- air streams: into the nose (inhale) -->
-            <g class="learn-air learn-air--in" fill="#bfe0f5">
-              <circle cx="122" cy="50" r="2.6"/>
-              <circle cx="129" cy="46" r="2.2"/>
-              <circle cx="129" cy="55" r="2.2"/>
-            </g>
-            <!-- air streams: out of the mouth (exhale) -->
-            <g class="learn-air learn-air--out" fill="#bfe0f5">
-              <circle cx="106" cy="66" r="2.6"/>
-              <circle cx="113" cy="70" r="2.2"/>
-              <circle cx="113" cy="62" r="2.2"/>
-            </g>
-          </svg>
+          <!-- The person (side profile, facing right). Chest glow + air streams
+               are layered over the image and animate with the breath. -->
+          <div class="learn-figure">
+            <img class="learn-figure__img" src="assets/figure.png" alt="" aria-hidden="true" draggable="false" />
+            <span class="learn-figure__glow" id="learn-chest-glow" aria-hidden="true"></span>
+            <!-- air into the nose (inhale) -->
+            <div class="learn-air learn-air--in" aria-hidden="true"><span></span><span></span><span></span></div>
+            <!-- air out of the mouth (exhale) -->
+            <div class="learn-air learn-air--out" aria-hidden="true"><span></span><span></span><span></span></div>
+          </div>
         </div>
 
         <p class="learn__phase" id="learn-phase" aria-live="polite">Breathe in</p>

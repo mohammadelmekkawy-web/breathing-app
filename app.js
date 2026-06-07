@@ -1056,17 +1056,23 @@
     const time = timeMs / 1000;
     const cx = W / 2, cy = H / 2, R = Math.min(W, H) / 2 - dpr * 1.5;
     const surfaceY = cy + R - fill * 2 * R; // fill 0 → bottom, fill 1 → top
-    // Calm rolling sway: the whole surface slowly TILTS side to side (water
-    // rocking in a bowl) — rolls up one wall, then back across — plus a faint
-    // ripple for life. Slow + smooth (~14s rock), never agitated.
-    const tilt = reduced ? 0 : R * 0.22 * Math.sin(time * 0.45);
-    const rippleA = reduced ? 0 : R * 0.022;
+    // Real liquid surface = a superposition of STANDING-WAVE sloshing modes
+    // (antisymmetric "rock" + symmetric centre swell + a higher undulation),
+    // each a curved eigenmode oscillating at its own slow, incommensurate
+    // frequency, plus fine ripples. Because the curvature itself moves, it
+    // reads as gentle rolling waves — not a rigid tilting line. Calm by design
+    // (low amplitudes, slow speeds); reduced-motion → perfectly flat.
+    const PI = Math.PI;
     const waveAt = (x) => {
       if (reduced) return surfaceY;
-      const u = (x - cx) / R;                       // -1 (left) .. +1 (right)
-      return surfaceY - u * tilt
-           + Math.sin(u * 2.4 + time * 0.75) * rippleA
-           + Math.sin(u * 1.3 - time * 0.5) * rippleA * 0.7;
+      const u = (x - cx) / R;                 // -1 (left) .. +1 (right)
+      const eta =
+          0.140 * Math.sin(u * PI * 0.5) * Math.sin(time * 0.40)         // mode 1: antisymmetric rock (curved)
+        + 0.060 * Math.cos(u * PI)       * Math.sin(time * 0.63 + 1.3)   // mode 2: symmetric centre swell
+        + 0.045 * Math.sin(u * PI)       * Math.sin(time * 0.85 + 2.4)   // mode 3: higher undulation
+        + 0.013 * Math.sin(u * 3.3 - time * 1.05)                        // fine ripple
+        + 0.009 * Math.sin(u * 5.1 + time * 0.78);                       // fine ripple
+      return surfaceY - eta * R;             // +eta raises the surface (crest)
     };
 
     // Everything liquid-side is clipped strictly inside the circle.
@@ -1081,7 +1087,7 @@
 
     if (fill > 0.005) {
       // Liquid body (wavy top → bottom).
-      const steps = 32;
+      const steps = 44;
       ctx.beginPath();
       ctx.moveTo(cx - R, cy + R + 2);
       ctx.lineTo(cx - R, waveAt(cx - R));

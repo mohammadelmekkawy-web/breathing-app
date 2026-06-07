@@ -384,6 +384,21 @@
       </div>
     </div>
 
+    <!-- ===================== EXPORT SHEET (copy / share / download) ===================== -->
+    <div id="export-overlay" class="overlay" role="dialog" aria-modal="true" aria-labelledby="export-title" hidden>
+      <div class="overlay__card overlay__card--wide">
+        <h2 class="overlay__title" id="export-title">Your data</h2>
+        <p class="overlay__sub" id="export-sub">Copy it, share it, or download it. It stays on your device unless you share it.</p>
+        <textarea id="export-text" class="export-text" readonly aria-label="Exported data"></textarea>
+        <div class="export-actions">
+          <button type="button" class="btn btn--primary" id="export-copy">Copy</button>
+          <button type="button" class="btn btn--ghost" id="export-share" hidden>Share / Save</button>
+          <button type="button" class="btn btn--ghost" id="export-download">Download</button>
+        </div>
+        <button type="button" class="btn btn--ghost" id="export-close">Close</button>
+      </div>
+    </div>
+
   </main>
 
   <script src="app.js"></script>

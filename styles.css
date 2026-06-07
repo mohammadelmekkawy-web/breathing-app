@@ -578,6 +578,19 @@ body {
 .calm-btn:hover { background: var(--accent); color: var(--primary-ink); border-color: var(--accent); }
 .calm-scale__labels { display: flex; justify-content: space-between; color: var(--text-dim); font-size: 0.85rem; margin-bottom: var(--s3); }
 
+/* ===================== EXPORT SHEET ===================== */
+.overlay__card--wide { max-width: 30rem; }
+.export-text {
+  width: 100%; min-height: 9rem; max-height: 40vh; resize: vertical;
+  font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 0.78rem; line-height: 1.45;
+  padding: var(--s2); margin: var(--s2) 0;
+  border-radius: var(--radius); border: 1px solid var(--line);
+  background: var(--surface-2); color: var(--text);
+  white-space: pre; overflow: auto; -webkit-text-size-adjust: 100%;
+}
+.export-actions { display: flex; gap: var(--s1); flex-wrap: wrap; margin-bottom: var(--s2); }
+.export-actions .btn { flex: 1; min-width: 7rem; }
+
 /* ===================== REDUCED MOTION ===================== */
 /* Calm, non-scaling alternative: the circle holds its size and
    gently changes opacity instead of expanding/contracting.

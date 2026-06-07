@@ -346,6 +346,15 @@
     calmTitle: $('calm-q'),
     calmSub: $('calm-sub'),
     btnCalmSkip: $('btn-calm-skip'),
+
+    // Export sheet
+    exportOverlay: $('export-overlay'),
+    exportText: $('export-text'),
+    exportSub: $('export-sub'),
+    exportCopy: $('export-copy'),
+    exportShare: $('export-share'),
+    exportDownload: $('export-download'),
+    exportClose: $('export-close'),
   };
 
   const prefersReducedMotion = () =>
@@ -1417,20 +1426,67 @@
       setTimeout(() => URL.revokeObjectURL(url), 2000);
     } catch {}
   }
-  async function exportFile(filename, text, type) {
-    // Prefer the share sheet where supported (lets iOS save to Files); else download.
-    try {
-      if (navigator.canShare) {
-        const file = new File([text], filename, { type });
-        if (navigator.canShare({ files: [file] })) {
-          try { await navigator.share({ files: [file], title: 'Breathe data' }); }
-          catch { /* user cancelled — leave it */ }
-          return;
-        }
-      }
-    } catch {}
-    downloadFile(filename, text, type);
+  // Export ALWAYS shows an in-app sheet (works on every platform, incl. installed
+  // iOS PWAs where silent downloads/share do nothing). From there the user can
+  // copy, share/save, or download the file.
+  let currentExport = { filename: '', text: '', type: '' };
+  const EXPORT_SUB_DEFAULT = 'Copy it, share it, or download it. It stays on your device unless you share it.';
+  let exportFlashTimer = 0;
+
+  function exportFlash(msg) {
+    el.exportSub.textContent = msg;
+    clearTimeout(exportFlashTimer);
+    exportFlashTimer = setTimeout(() => { el.exportSub.textContent = EXPORT_SUB_DEFAULT; }, 2200);
   }
+
+  function openExport(filename, text, type) {
+    currentExport = { filename, text, type };
+    el.exportText.value = text;
+    el.exportSub.textContent = EXPORT_SUB_DEFAULT;
+    // Show Share whenever the platform supports the Web Share API at all
+    // (shareExport falls back from file-share to text-share as needed).
+    el.exportShare.hidden = (typeof navigator.share !== 'function');
+    el.exportOverlay.hidden = false;
+    requestAnimationFrame(() => el.exportCopy.focus());
+  }
+  function closeExport() { el.exportOverlay.hidden = true; }
+
+  async function copyExport() {
+    const text = currentExport.text;
+    try {
+      await navigator.clipboard.writeText(text);
+      exportFlash('Copied to clipboard ✓');
+      return;
+    } catch { /* fall back to selection-based copy */ }
+    try {
+      el.exportText.focus();
+      el.exportText.select();
+      el.exportText.setSelectionRange(0, text.length);
+      const ok = document.execCommand && document.execCommand('copy');
+      exportFlash(ok ? 'Copied to clipboard ✓' : 'Select the text, then press ⌘/Ctrl+C');
+    } catch { exportFlash('Select the text, then press ⌘/Ctrl+C'); }
+  }
+
+  async function shareExport() {
+    const { filename, text, type } = currentExport;
+    // Try sharing as a file first (lets iOS "Save to Files"); fall back to text.
+    try {
+      const file = new File([text], filename, { type });
+      if (navigator.canShare && navigator.canShare({ files: [file] })) {
+        await navigator.share({ files: [file], title: 'Breathe data' });
+        return;
+      }
+    } catch { /* cancelled or unsupported */ return; }
+    try {
+      if (typeof navigator.share === 'function') {
+        await navigator.share({ title: 'Breathe data', text });
+        return;
+      }
+    } catch { return; }
+    exportFlash('Sharing not available — use Copy or Download');
+  }
+
+  function downloadExport() { downloadFile(currentExport.filename, currentExport.text, currentExport.type); }
 
   /* =======================================================
      Wiring
@@ -1472,8 +1528,18 @@
   el.optCalm.addEventListener('click', () => { settings.calmCheck = !settings.calmCheck; saveSettings(); renderStart(); });
   el.btnEditProfile.addEventListener('click', () => { renderOnboarding(); showScreen('onboarding'); });
   el.btnReplayWelcome.addEventListener('click', () => { armWelcomeChime(); showScreen('welcome'); });
-  el.btnExportJson.addEventListener('click', () => exportFile(`breathe-data-${todayStr()}.json`, JSON.stringify(buildExportObject(), null, 2), 'application/json'));
-  el.btnExportCsv.addEventListener('click', () => exportFile(`breathe-data-${todayStr()}.csv`, buildCSV(), 'text/csv'));
+  el.btnExportJson.addEventListener('click', () => openExport(`breathe-data-${todayStr()}.json`, JSON.stringify(buildExportObject(), null, 2), 'application/json'));
+  el.btnExportCsv.addEventListener('click', () => openExport(`breathe-data-${todayStr()}.csv`, buildCSV(), 'text/csv'));
+
+  // ----- Export sheet -----
+  el.exportCopy.addEventListener('click', copyExport);
+  el.exportShare.addEventListener('click', shareExport);
+  el.exportDownload.addEventListener('click', downloadExport);
+  el.exportClose.addEventListener('click', closeExport);
+  el.exportOverlay.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') { e.preventDefault(); closeExport(); }
+  });
+  el.exportOverlay.addEventListener('click', (e) => { if (e.target === el.exportOverlay) closeExport(); });
 
   // ----- Calm check overlay -----
   el.calmOverlay.querySelectorAll('.calm-btn').forEach((btn) => {

@@ -95,32 +95,36 @@
         <p class="learn__sub">New here? Just breathe along with the circle.</p>
 
         <div class="learn__scene is-inhale" id="learn-scene">
-          <!-- The orb — fills with your breath (same as you'll see in a session) -->
-          <svg class="learn-orb" viewBox="0 0 120 120" aria-hidden="true" focusable="false">
-            <defs>
-              <linearGradient id="learnFillOrb" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0" stop-color="#7ebae4"/>
-                <stop offset="0.5" stop-color="#3a78a8"/>
-                <stop offset="1" stop-color="#1c446c"/>
-              </linearGradient>
-              <clipPath id="learnOrbClip"><circle cx="60" cy="60" r="53"/></clipPath>
-            </defs>
-            <circle cx="60" cy="60" r="53" fill="#16263a"/>
-            <g clip-path="url(#learnOrbClip)">
-              <rect id="learn-orb-fill" x="0" y="120" width="120" height="0" fill="url(#learnFillOrb)"/>
-            </g>
-            <circle cx="60" cy="60" r="56" fill="none" stroke="#efd49a" stroke-width="3"/>
-          </svg>
-
-          <!-- The person (side profile, facing right). Chest glow + air streams
-               are layered over the image and animate with the breath. -->
+          <!-- The person (side profile, facing RIGHT toward the orb). Chest glow +
+               air streams are layered over the image and animate with the breath. -->
           <div class="learn-figure">
             <img class="learn-figure__img" src="assets/figure.png" alt="" aria-hidden="true" draggable="false" />
             <span class="learn-figure__glow" id="learn-chest-glow" aria-hidden="true"></span>
-            <!-- air into the nose (inhale) -->
-            <div class="learn-air learn-air--in" aria-hidden="true"><span></span><span></span><span></span></div>
-            <!-- air out of the mouth (exhale) -->
-            <div class="learn-air learn-air--out" aria-hidden="true"><span></span><span></span><span></span></div>
+            <!-- Curved air streams over the nose/mouth (viewBox matches the figure box) -->
+            <svg class="learn-air" viewBox="0 0 100 100" aria-hidden="true" focusable="false" fill="none"
+                 stroke="#9fd2f3" stroke-width="1.5" stroke-linecap="round">
+              <!-- inhale: streams curving INTO the nose (~72,40) from the right -->
+              <g class="learn-air--in">
+                <path d="M99,33 Q86,34 78,39"/>
+                <path d="M99,41 Q88,42 79,44"/>
+                <path d="M99,49 Q88,49 80,47"/>
+                <circle cx="93" cy="30" r="0.9" fill="#bfe0f5" stroke="none"/>
+                <circle cx="96" cy="45" r="0.9" fill="#bfe0f5" stroke="none"/>
+              </g>
+              <!-- exhale: streams curving OUT of the mouth (~70,48) to the lower right -->
+              <g class="learn-air--out">
+                <path d="M73,47 Q85,49 98,55"/>
+                <path d="M73,50 Q84,54 96,61"/>
+                <path d="M73,53 Q82,58 92,65"/>
+                <circle cx="95" cy="58" r="0.9" fill="#bfe0f5" stroke="none"/>
+              </g>
+            </svg>
+          </div>
+
+          <!-- The orb — the real glowing liquid orb, rendered on canvas like a session -->
+          <div class="learn-orb">
+            <canvas class="learn-orb__canvas" id="learn-orb-canvas" aria-hidden="true"></canvas>
+            <span class="learn-orb__ring" aria-hidden="true"></span>
           </div>
         </div>
 

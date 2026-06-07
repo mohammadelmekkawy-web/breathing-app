@@ -321,7 +321,7 @@
     // How it works (beginner walkthrough)
     screenLearn: $('screen-learn'),
     learnScene: $('learn-scene'),
-    learnOrbFill: $('learn-orb-fill'),
+    learnOrbCanvas: $('learn-orb-canvas'),
     learnChestGlow: $('learn-chest-glow'),
     learnPhase: $('learn-phase'),
     learnCue: $('learn-cue'),
@@ -913,8 +913,9 @@
     return true;
   }
 
-  function drawOrb(fill, timeMs) {
-    const c = orb.canvas, ctx = orb.ctx;
+  function drawOrb(fill, timeMs, inst) {
+    inst = inst || orb;
+    const c = inst.canvas, ctx = inst.ctx;
     const cssW = c.clientWidth, cssH = c.clientHeight;
     if (!cssW || !cssH) return;
     const dpr = Math.min(2, window.devicePixelRatio || 1);
@@ -999,7 +1000,7 @@
       // Magical particles — only those submerged (more appear as the liquid rises).
       if (!reduced) {
         ctx.globalCompositeOperation = 'lighter';
-        for (const p of orb.particles) {
+        for (const p of inst.particles) {
           if (p.hf >= fill) continue;
           const fadeIn = Math.min(1, (fill - p.hf) / 0.10); // ease in as the surface passes
           const dyN = 1 - 2 * p.hf;
@@ -1009,7 +1010,7 @@
           const tw = 0.4 + 0.6 * (0.5 + 0.5 * Math.sin(time * p.tws + p.twp));
           const size = p.size * R;
           ctx.globalAlpha = Math.min(1, fadeIn * tw * p.baseA);
-          ctx.drawImage(p.warm ? orb.spriteWarm : orb.spriteWhite, px - size, py - size, size * 2, size * 2);
+          ctx.drawImage(p.warm ? inst.spriteWarm : inst.spriteWhite, px - size, py - size, size * 2, size * 2);
         }
         ctx.globalAlpha = 1;
         ctx.globalCompositeOperation = 'source-over';
@@ -1324,10 +1325,23 @@
   const LEARN_PHASES = { in: 4000, hold: 4000, out: 4000 }; // 12s loop, gentle box-style
   const easeInOut = (p) => 0.5 - 0.5 * Math.cos(Math.PI * clamp(p, 0, 1));
 
-  function setLearnFill(fill) {
-    // Orb (viewBox 120): liquid rises from the bottom.
-    el.learnOrbFill.setAttribute('y', (120 - fill * 120).toFixed(1));
-    el.learnOrbFill.setAttribute('height', (fill * 120).toFixed(1));
+  // The walkthrough renders the SAME liquid orb as a session (its own instance/canvas).
+  const learnOrb = { canvas: null, ctx: null, particles: null, spriteWhite: null, spriteWarm: null };
+  function ensureLearnOrb() {
+    if (learnOrb.ctx) return true;
+    if (!el.learnOrbCanvas) return false;
+    learnOrb.canvas = el.learnOrbCanvas;
+    learnOrb.ctx = el.learnOrbCanvas.getContext('2d');
+    if (!learnOrb.ctx) return false;
+    learnOrb.particles = buildOrbParticles();
+    learnOrb.spriteWhite = makeGlowSprite('255,248,232');
+    learnOrb.spriteWarm = makeGlowSprite('255,221,150');
+    return true;
+  }
+
+  function setLearnFill(fill, timeMs) {
+    // Orb — the real glowing liquid orb (same renderer as a session).
+    if (ensureLearnOrb()) drawOrb(fill, timeMs || 0, learnOrb);
     // Chest/lungs glow: brightens and gently swells as the breath fills.
     el.learnChestGlow.style.opacity = (0.12 + 0.88 * fill).toFixed(3);
     el.learnChestGlow.style.transform =
@@ -1354,13 +1368,13 @@
     const t = (ts - learn.t0) % total;
     if (t < LEARN_PHASES.in) {
       setLearnPhase('inhale', 'Breathe in', 'slowly, through your nose');
-      setLearnFill(easeInOut(t / LEARN_PHASES.in));
+      setLearnFill(easeInOut(t / LEARN_PHASES.in), ts);
     } else if (t < LEARN_PHASES.in + LEARN_PHASES.hold) {
       setLearnPhase('hold', 'Hold', 'keep it soft and easy');
-      setLearnFill(1);
+      setLearnFill(1, ts);
     } else {
       setLearnPhase('exhale', 'Breathe out', 'slowly, through your mouth');
-      setLearnFill(1 - easeInOut((t - LEARN_PHASES.in - LEARN_PHASES.hold) / LEARN_PHASES.out));
+      setLearnFill(1 - easeInOut((t - LEARN_PHASES.in - LEARN_PHASES.hold) / LEARN_PHASES.out), ts);
     }
     learn.raf = requestAnimationFrame(learnTick);
   }
@@ -1373,7 +1387,7 @@
       el.learnStatic.hidden = false;
       el.learnPhase.textContent = 'In · hold · out';
       el.learnCue.textContent = 'one calm breath';
-      setLearnFill(0.6);
+      setLearnFill(0.6, 0);
       el.learnScene.classList.remove('is-inhale', 'is-hold', 'is-exhale');
       return;
     }

@@ -536,8 +536,10 @@ body {
 .learn__title { font-size: clamp(1.8rem, 7vw, 2.4rem); margin: 0 0 var(--s1); font-weight: 600; }
 .learn__sub { color: var(--text-dim); margin: 0 0 var(--s3); }
 .learn__scene { display: flex; align-items: center; justify-content: center; gap: var(--s2); margin: var(--s1) 0 var(--s2); color: var(--accent); }
-.learn-orb { width: clamp(6rem, 30vw, 8.5rem); height: clamp(6rem, 30vw, 8.5rem); flex: none; filter: drop-shadow(0 0 16px rgba(127,182,207,0.35)); }
-.learn-figure { position: relative; width: clamp(7rem, 36vw, 10rem); height: clamp(7rem, 36vw, 10rem); flex: none; }
+.learn-orb { position: relative; width: clamp(6rem, 30vw, 8.5rem); height: clamp(6rem, 30vw, 8.5rem); flex: none; filter: drop-shadow(0 0 16px rgba(127,182,207,0.35)); }
+.learn-orb__canvas { width: 100%; height: 100%; display: block; border-radius: 50%; }
+.learn-orb__ring { position: absolute; inset: 0; border-radius: 50%; border: 3px solid var(--ring-fill); box-shadow: 0 0 14px rgba(239,212,154,0.4); pointer-events: none; }
+.learn-figure { position: relative; width: clamp(7rem, 36vw, 10rem); height: clamp(7rem, 36vw, 10rem); flex: none; overflow: visible; }
 .learn-figure__img { width: 100%; height: 100%; object-fit: contain; display: block; -webkit-user-select: none; user-select: none; }
 /* Soft glow in the chest/lungs area — brightens & swells with the breath (opacity/scale set in JS) */
 .learn-figure__glow {
@@ -558,40 +560,20 @@ body {
 .screen--learn .btn--primary { min-width: 12rem; }
 .btn--how { margin: var(--s1) auto 0; font-size: 0.9rem; min-height: auto; padding: 8px 14px; color: var(--accent); }
 
-/* Air-stream particles (small dots layered over the figure, driven by the phase class) */
-.learn-air { position: absolute; pointer-events: none; }
-.learn-air span {
-  position: absolute; width: 6px; height: 6px; border-radius: 50%;
-  background: #bfe0f5; box-shadow: 0 0 6px rgba(191,224,245,0.9); opacity: 0;
-}
-/* nose ~ (73%, 40%): air comes from the right, drifts in toward the nose */
-.learn-air--in { left: 74%; top: 38%; width: 26%; height: 12%; }
-.learn-air--in span:nth-child(1) { left: 40%; top: 35%; }
-.learn-air--in span:nth-child(2) { left: 70%; top: 5%; }
-.learn-air--in span:nth-child(3) { left: 70%; top: 70%; }
-/* mouth ~ (70%, 46%): air leaves the mouth, drifts out to the right/down */
-.learn-air--out { left: 66%; top: 46%; width: 30%; height: 16%; }
-.learn-air--out span:nth-child(1) { left: 10%; top: 20%; }
-.learn-air--out span:nth-child(2) { left: 10%; top: 55%; }
-.learn-air--out span:nth-child(3) { left: 25%; top: 90%; }
+/* Air streams — curved flowing lines over the nose (inhale) / mouth (exhale).
+   The SVG overlays the figure; groups fade + "flow" only during their phase. */
+.learn-air { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; overflow: visible; filter: drop-shadow(0 0 3px rgba(159,210,243,0.6)); }
+.learn-air--in, .learn-air--out { opacity: 0; transition: opacity 0.5s ease; }
+.learn-air path { stroke-dasharray: 7 6; }
+.learn__scene.is-inhale .learn-air--in { opacity: 0.95; }
+.learn__scene.is-exhale .learn-air--out { opacity: 0.95; }
 @media (prefers-reduced-motion: no-preference) {
-  .learn__scene.is-inhale .learn-air--in span { animation: air-in 1.7s ease-in-out infinite; }
-  .learn__scene.is-inhale .learn-air--in span:nth-child(2) { animation-delay: 0.3s; }
-  .learn__scene.is-inhale .learn-air--in span:nth-child(3) { animation-delay: 0.6s; }
-  .learn__scene.is-exhale .learn-air--out span { animation: air-out 1.7s ease-in-out infinite; }
-  .learn__scene.is-exhale .learn-air--out span:nth-child(2) { animation-delay: 0.3s; }
-  .learn__scene.is-exhale .learn-air--out span:nth-child(3) { animation-delay: 0.6s; }
+  .learn__scene.is-inhale .learn-air--in path { animation: air-flow-in 1.4s linear infinite; }
+  .learn__scene.is-exhale .learn-air--out path { animation: air-flow-out 1.6s linear infinite; }
 }
-@keyframes air-in {
-  0% { opacity: 0; transform: translateX(20px); }
-  45% { opacity: 0.95; }
-  100% { opacity: 0; transform: translateX(-12px); }
-}
-@keyframes air-out {
-  0% { opacity: 0; transform: translate(0, 0); }
-  45% { opacity: 0.95; }
-  100% { opacity: 0; transform: translate(20px, 9px); }
-}
+/* dashoffset travels so the dashes drift toward the nose (in) / away from the mouth (out) */
+@keyframes air-flow-in  { from { stroke-dashoffset: 13; } to { stroke-dashoffset: 0; } }
+@keyframes air-flow-out { from { stroke-dashoffset: 0; } to { stroke-dashoffset: 13; } }
 
 /* ===================== ONBOARDING ===================== */
 .screen--onboarding { justify-content: center; gap: var(--s3); padding-block: var(--s4); }

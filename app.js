@@ -84,7 +84,7 @@
     sound: true,
     haptic: true,
     theme: 'dark',      // 'dark' | 'light'
-    animationStyle: 'circle',  // 'circle' or 'liquid'
+    animationStyle: 'liquid',  // 'liquid' (2D orb) or 'liquid3d' (3D orb)
     bgTrack: 'off',     // background music: 'off' | 'leberch' | 'starostin'
     bgVolume: 0.5,      // background music volume (0..1)
     calmCheck: true,    // optional before/after calm self-rating
@@ -104,7 +104,7 @@
         sound: s.sound !== false,
         haptic: s.haptic !== false,
         theme: s.theme === 'light' ? 'light' : 'dark',
-        animationStyle: ['circle', 'liquid', 'liquid3d'].includes(s.animationStyle) ? s.animationStyle : 'circle',
+        animationStyle: (s.animationStyle === 'liquid3d') ? 'liquid3d' : 'liquid', // 'circle' (legacy) → 2D orb
         bgTrack: ['off', 'leberch', 'starostin'].includes(s.bgTrack) ? s.bgTrack : 'off',
         bgVolume: clamp(parseFloat(s.bgVolume != null ? s.bgVolume : s.soundscapeVolume) || DEFAULTS.bgVolume, 0, 1),
         calmCheck: s.calmCheck !== false,
@@ -290,7 +290,7 @@
     sessOptSound: $('sess-opt-sound'),
     sessBgSelect: $('sess-bg-select'),
     sessBgVolume: $('sess-bg-volume'),
-    sessOpt3d: $('sess-opt-3d'),
+    sessVisual: $('sess-visual'),
 
     endTime: $('end-time'),
     endCount: $('end-count'),
@@ -497,8 +497,7 @@
     bgOptionsDetails.addEventListener('toggle', () => { if (!bgOptionsDetails.open) stopPreview(); });
   }
   el.optVisual.addEventListener('change', () => {
-    const v = el.optVisual.value;
-    settings.animationStyle = ['circle', 'liquid', 'liquid3d'].includes(v) ? v : 'circle';
+    settings.animationStyle = (el.optVisual.value === 'liquid3d') ? 'liquid3d' : 'liquid';
     saveSettings();
     renderStart();
   });
@@ -800,7 +799,9 @@
     el.sessBgSelect.value = settings.bgTrack;
     el.sessBgVolume.value = String(Math.round(settings.bgVolume * 100));
     el.sessBgVolume.disabled = (settings.bgTrack === 'off');
-    setSwitch(el.sessOpt3d, settings.animationStyle === 'liquid3d');
+    el.sessVisual.querySelectorAll('.segmented__btn').forEach((b) => {
+      b.setAttribute('aria-checked', b.getAttribute('data-style') === settings.animationStyle ? 'true' : 'false');
+    });
   }
 
   // ----- In-settings track preview (play/stop a short audition) -----
@@ -1932,12 +1933,14 @@
     if (music.master && music.playing) musicFade(musicTarget(), 0.2);
   });
 
-  // Live 2D ⇄ 3D orb switch (render() reads animationStyle each frame, so it
+  // Live 2D / 3D orb switch (render() reads animationStyle each frame, so it
   // changes immediately without interrupting or resetting the session).
-  el.sessOpt3d.addEventListener('click', () => {
-    settings.animationStyle = (settings.animationStyle === 'liquid3d') ? 'liquid' : 'liquid3d';
-    saveSettings();
-    updateAudioButtons();
+  el.sessVisual.querySelectorAll('.segmented__btn').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      settings.animationStyle = (btn.getAttribute('data-style') === 'liquid3d') ? 'liquid3d' : 'liquid';
+      saveSettings();
+      updateAudioButtons();
+    });
   });
 
   // Keyboard: Space toggles pause during a session; Escape stops.

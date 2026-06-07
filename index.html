@@ -205,7 +205,6 @@
             <div class="toggle toggle--select">
               <label class="toggle__label" for="opt-visual">Breathing visual</label>
               <select class="select" id="opt-visual" aria-label="Breathing visual style">
-                <option value="circle">Circle</option>
                 <option value="liquid">Liquid orb (2D)</option>
                 <option value="liquid3d">Liquid orb (3D ✨)</option>
               </select>
@@ -318,9 +317,11 @@
                    min="0" max="100" step="1" value="50" aria-label="Background music volume" />
           </div>
           <div class="toggle">
-            <span class="toggle__label" id="lbl-sess-3d">3D orb</span>
-            <button type="button" class="switch" id="sess-opt-3d" role="switch"
-                    aria-checked="false" aria-labelledby="lbl-sess-3d"><span class="switch__dot"></span></button>
+            <span class="toggle__label" id="lbl-sess-visual">Orb style</span>
+            <div class="segmented segmented--mini" role="radiogroup" aria-labelledby="lbl-sess-visual" id="sess-visual">
+              <button type="button" class="segmented__btn" role="radio" aria-checked="false" data-style="liquid">2D</button>
+              <button type="button" class="segmented__btn" role="radio" aria-checked="true" data-style="liquid3d">3D</button>
+            </div>
           </div>
         </div>
       </div>

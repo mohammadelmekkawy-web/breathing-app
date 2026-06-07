@@ -130,14 +130,17 @@
   function loadProfile() {
     try {
       const p = JSON.parse(localStorage.getItem(PROFILE_KEY) || '{}');
+      let goals = [];
+      if (Array.isArray(p.goals)) goals = p.goals.filter((g) => typeof g === 'string');
+      else if (typeof p.goal === 'string' && p.goal) goals = [p.goal]; // migrate old single goal
       return {
         name: typeof p.name === 'string' ? p.name : '',
         age: typeof p.age === 'string' ? p.age : '',
-        goal: typeof p.goal === 'string' ? p.goal : '',
+        goals,
         welcomed: p.welcomed === true,
         onboarded: p.onboarded === true,
       };
-    } catch { return { name: '', age: '', goal: '', welcomed: false, onboarded: false }; }
+    } catch { return { name: '', age: '', goals: [], welcomed: false, onboarded: false }; }
   }
   function saveProfile() { try { localStorage.setItem(PROFILE_KEY, JSON.stringify(profile)); } catch {} }
 
@@ -1181,10 +1184,25 @@
     const c = container.querySelector('.chip[aria-checked="true"]');
     return c ? c.getAttribute('data-' + attr) : '';
   }
+  function getCheckedGoals() {
+    return Array.from(el.onboardGoal.querySelectorAll('.chip[aria-checked="true"]'))
+      .map((c) => c.getAttribute('data-goal'));
+  }
+  function selectGoalChips(values) {
+    const set = new Set(values || []);
+    el.onboardGoal.querySelectorAll('.chip').forEach((c) => {
+      c.setAttribute('aria-checked', set.has(c.getAttribute('data-goal')) ? 'true' : 'false');
+    });
+  }
+  // With multiple goals, suggest a mode from the first selected goal that maps to one.
+  function suggestedModeForGoals(goals) {
+    for (const g of goals) { if (GOAL_MODE[g]) return GOAL_MODE[g]; }
+    return null;
+  }
   function updateGoalSuggestion() {
-    const mode = GOAL_MODE[getCheckedChip(el.onboardGoal, 'goal')];
+    const mode = suggestedModeForGoals(getCheckedGoals());
     if (mode && MODE_FRIENDLY[mode]) {
-      el.onboardSuggestion.textContent = `Suggested for this: ${MODE_FRIENDLY[mode]}. You can change it anytime.`;
+      el.onboardSuggestion.textContent = `Suggested to start: ${MODE_FRIENDLY[mode]}. You can change it anytime.`;
       el.onboardSuggestion.hidden = false;
     } else {
       el.onboardSuggestion.hidden = true;
@@ -1194,15 +1212,15 @@
   function renderOnboarding() {
     el.onboardName.value = profile.name || '';
     selectChipByData(el.onboardAge, 'age', profile.age);
-    selectChipByData(el.onboardGoal, 'goal', profile.goal);
+    selectGoalChips(profile.goals);
     updateGoalSuggestion();
   }
   function finishOnboarding(skip) {
     if (!skip) {
       profile.name = (el.onboardName.value || '').trim().slice(0, 40);
       profile.age = getCheckedChip(el.onboardAge, 'age');
-      profile.goal = getCheckedChip(el.onboardGoal, 'goal');
-      const mode = GOAL_MODE[profile.goal];
+      profile.goals = getCheckedGoals();
+      const mode = suggestedModeForGoals(profile.goals);
       if (mode) { settings.mode = mode; saveSettings(); } // overridable suggestion
     }
     profile.welcomed = true;
@@ -1341,7 +1359,7 @@
         fields: {
           'profile.name': 'Your name (for personalization)',
           'profile.age': 'Your selected age range',
-          'profile.goal': 'Your selected goal',
+          'profile.goals': 'Your selected goals (one or more)',
           points: 'Total encouragement points',
           'streak.current': 'Forgiving day-streak — only grows; a missed day pauses it and never resets to zero',
           'streak.longest': 'Highest streak reached',
@@ -1358,7 +1376,7 @@
           'sessions[].calmAfter': 'Your 1–5 calm self-rating after (or null)',
         },
       },
-      profile: { name: profile.name, age: profile.age, goal: profile.goal },
+      profile: { name: profile.name, age: profile.age, goals: profile.goals },
       points: progress.points,
       streak: progress.streak,
       sessions: progress.history,
@@ -1435,13 +1453,18 @@
   });
   el.onboardForm.addEventListener('submit', (e) => { e.preventDefault(); finishOnboarding(false); });
   el.btnOnboardSkip.addEventListener('click', () => finishOnboarding(true));
-  [el.onboardAge, el.onboardGoal].forEach((container) => {
-    container.querySelectorAll('.chip').forEach((chip) => {
-      chip.addEventListener('click', () => {
-        container.querySelectorAll('.chip').forEach((c) => c.setAttribute('aria-checked', 'false'));
-        chip.setAttribute('aria-checked', 'true');
-        if (container === el.onboardGoal) updateGoalSuggestion();
-      });
+  // Age: single-select (one range).
+  el.onboardAge.querySelectorAll('.chip').forEach((chip) => {
+    chip.addEventListener('click', () => {
+      el.onboardAge.querySelectorAll('.chip').forEach((c) => c.setAttribute('aria-checked', 'false'));
+      chip.setAttribute('aria-checked', 'true');
+    });
+  });
+  // Goals: multi-select (toggle each independently).
+  el.onboardGoal.querySelectorAll('.chip').forEach((chip) => {
+    chip.addEventListener('click', () => {
+      chip.setAttribute('aria-checked', chip.getAttribute('aria-checked') === 'true' ? 'false' : 'true');
+      updateGoalSuggestion();
     });
   });
 

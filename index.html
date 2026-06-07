@@ -68,13 +68,13 @@
         </div>
 
         <div class="field">
-          <span class="field__label" id="onboard-goal-label">Your goal</span>
-          <div class="chips chips--col" role="radiogroup" aria-labelledby="onboard-goal-label" id="onboard-goal">
-            <button type="button" class="chip" role="radio" aria-checked="false" data-goal="stress">Reduce stress / anxiety</button>
-            <button type="button" class="chip" role="radio" aria-checked="false" data-goal="sleep">Sleep better</button>
-            <button type="button" class="chip" role="radio" aria-checked="false" data-goal="focus">Focus &amp; perform</button>
-            <button type="button" class="chip" role="radio" aria-checked="false" data-goal="habit">Build a calm daily habit</button>
-            <button type="button" class="chip" role="radio" aria-checked="false" data-goal="explore">Just exploring</button>
+          <span class="field__label" id="onboard-goal-label">Your goals <span class="field__hint">— choose any</span></span>
+          <div class="chips chips--col" role="group" aria-labelledby="onboard-goal-label" id="onboard-goal">
+            <button type="button" class="chip" role="checkbox" aria-checked="false" data-goal="stress">Reduce stress / anxiety</button>
+            <button type="button" class="chip" role="checkbox" aria-checked="false" data-goal="sleep">Sleep better</button>
+            <button type="button" class="chip" role="checkbox" aria-checked="false" data-goal="focus">Focus &amp; perform</button>
+            <button type="button" class="chip" role="checkbox" aria-checked="false" data-goal="habit">Build a calm daily habit</button>
+            <button type="button" class="chip" role="checkbox" aria-checked="false" data-goal="explore">Just exploring</button>
           </div>
           <p class="field__note" id="onboard-suggestion" hidden></p>
         </div>

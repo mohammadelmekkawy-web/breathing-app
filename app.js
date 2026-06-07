@@ -1054,12 +1054,20 @@
 
     const reduced = prefersReducedMotion();
     const time = timeMs / 1000;
-    const cx = W / 2, cy = H / 2, R = Math.min(W, H) / 2 - dpr * 2;
+    const cx = W / 2, cy = H / 2, R = Math.min(W, H) / 2 - dpr * 1.5;
     const surfaceY = cy + R - fill * 2 * R; // fill 0 → bottom, fill 1 → top
-    const amp = reduced ? 0 : R * 0.045;
-    const waveAt = (x) => reduced ? surfaceY
-      : surfaceY + Math.sin((x / R) * 2.2 + time * 0.9) * amp
-                 + Math.sin((x / R) * 1.3 - time * 0.6) * amp * 0.6;
+    // Calm rolling sway: the whole surface slowly TILTS side to side (water
+    // rocking in a bowl) — rolls up one wall, then back across — plus a faint
+    // ripple for life. Slow + smooth (~14s rock), never agitated.
+    const tilt = reduced ? 0 : R * 0.22 * Math.sin(time * 0.45);
+    const rippleA = reduced ? 0 : R * 0.022;
+    const waveAt = (x) => {
+      if (reduced) return surfaceY;
+      const u = (x - cx) / R;                       // -1 (left) .. +1 (right)
+      return surfaceY - u * tilt
+           + Math.sin(u * 2.4 + time * 0.75) * rippleA
+           + Math.sin(u * 1.3 - time * 0.5) * rippleA * 0.7;
+    };
 
     // Everything liquid-side is clipped strictly inside the circle.
     ctx.save();
@@ -1073,7 +1081,7 @@
 
     if (fill > 0.005) {
       // Liquid body (wavy top → bottom).
-      const steps = 26;
+      const steps = 32;
       ctx.beginPath();
       ctx.moveTo(cx - R, cy + R + 2);
       ctx.lineTo(cx - R, waveAt(cx - R));
@@ -1135,10 +1143,12 @@
 
     // Soft rim that defines the orb (gentle glow, not a harsh edge).
     ctx.save();
+    // Subtle sphere edge — the gold progress ring (drawn over this) is the
+    // prominent boundary now, so keep the orb's own rim very gentle.
     ctx.beginPath(); ctx.arc(cx, cy, R, 0, Math.PI * 2);
-    ctx.strokeStyle = 'rgba(132,188,228,0.35)';
-    ctx.lineWidth = Math.max(1, dpr * 1.2);
-    if (!reduced) { ctx.shadowColor = 'rgba(120,182,226,0.5)'; ctx.shadowBlur = dpr * 10; }
+    ctx.strokeStyle = 'rgba(150,200,235,0.22)';
+    ctx.lineWidth = Math.max(1, dpr);
+    if (!reduced) { ctx.shadowColor = 'rgba(120,182,226,0.4)'; ctx.shadowBlur = dpr * 6; }
     ctx.stroke();
     ctx.restore();
 

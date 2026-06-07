@@ -313,10 +313,13 @@
             <button type="button" class="switch" id="sess-opt-sound" role="switch"
                     aria-checked="true" aria-labelledby="lbl-sess-sound"><span class="switch__dot"></span></button>
           </div>
-          <div class="toggle">
-            <span class="toggle__label" id="lbl-sess-music">Background music</span>
-            <button type="button" class="switch" id="sess-opt-music" role="switch"
-                    aria-checked="false" aria-labelledby="lbl-sess-music"><span class="switch__dot"></span></button>
+          <div class="toggle toggle--select">
+            <label class="toggle__label" for="sess-bg-select">Ambient track</label>
+            <select class="select" id="sess-bg-select" aria-label="Ambient background track">
+              <option value="off">Off</option>
+              <option value="leberch">Meditation — Leberch</option>
+              <option value="starostin">Meditation — Starostin</option>
+            </select>
           </div>
           <div class="toggle toggle--slider">
             <label class="toggle__label" for="sess-bg-volume">Volume</label>
@@ -369,10 +372,48 @@
         <div class="controls controls--stack">
           <button type="button" class="btn btn--primary" id="btn-restart">Breathe again</button>
           <button type="button" class="btn btn--ghost" id="btn-home">Home</button>
+          <!-- Calm, optional invitation — a real button, never a competitive flex -->
+          <button type="button" class="btn btn--ghost btn--invite" id="btn-share" aria-label="Invite a friend to breathe with you">
+            <svg class="icon-leaf" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M11 20A7 7 0 0 1 4 13C4 7.5 8 4 14 4c2 0 4 .5 6 1.5C19.5 15 14.5 20 11 20Z" />
+              <path d="M8.5 16.5C10.5 13 13.5 10.5 17 9" />
+            </svg>
+            <span class="invite-label">Invite a friend</span>
+          </button>
         </div>
+      </div>
+    </section>
 
-        <!-- Quiet, optional invitation — calm, never a competitive flex -->
-        <button type="button" class="share-link" id="btn-share" aria-label="Invite a friend to breathe with you">🌿 Invite a friend to breathe</button>
+    <!-- ===================== MY SUMMARY (in-app visual card) ===================== -->
+    <section id="screen-summary" class="screen screen--end" aria-labelledby="summary-title" hidden>
+      <div class="end-card">
+        <h2 class="end__title" id="summary-title">Your progress</h2>
+        <p class="end__sub" id="summary-sub">How your practice is going.</p>
+
+        <dl class="stats stats--grid">
+          <div class="stat"><dt class="stat__k">Sessions</dt><dd class="stat__v" id="sum-sessions">—</dd></div>
+          <div class="stat"><dt class="stat__k">Lifetime</dt><dd class="stat__v" id="sum-lifetime">—</dd></div>
+          <div class="stat"><dt class="stat__k">Rhythm</dt><dd class="stat__v" id="sum-rhythm">—</dd></div>
+          <div class="stat"><dt class="stat__k">Points</dt><dd class="stat__v" id="sum-points">—</dd></div>
+          <div class="stat"><dt class="stat__k">This week</dt><dd class="stat__v" id="sum-week">—</dd></div>
+          <div class="stat"><dt class="stat__k">Avg calm</dt><dd class="stat__v" id="sum-calm">—</dd></div>
+        </dl>
+
+        <p class="rhythm-note">The days you keep coming back to breathe. Miss one? No problem — just pick it back up.</p>
+        <p class="end__trend" id="sum-trend"></p>
+        <p class="end__calm" id="sum-calm-note" hidden></p>
+
+        <div class="controls controls--stack">
+          <button type="button" class="btn btn--ghost btn--invite" id="btn-share-summary" aria-label="Invite a friend to breathe with you">
+            <svg class="icon-leaf" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M11 20A7 7 0 0 1 4 13C4 7.5 8 4 14 4c2 0 4 .5 6 1.5C19.5 15 14.5 20 11 20Z" />
+              <path d="M8.5 16.5C10.5 13 13.5 10.5 17 9" />
+            </svg>
+            <span class="invite-label">Invite a friend</span>
+          </button>
+          <button type="button" class="btn btn--primary" id="btn-summary-done">Done</button>
+          <button type="button" class="btn btn--ghost btn--row" id="btn-summary-csv">Export data (CSV)</button>
+        </div>
       </div>
     </section>
 

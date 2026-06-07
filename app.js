@@ -288,7 +288,7 @@
     btnAudioPanel: $('btn-audio-panel'),
     audioPanel: $('audio-panel'),
     sessOptSound: $('sess-opt-sound'),
-    sessOptMusic: $('sess-opt-music'),
+    sessBgSelect: $('sess-bg-select'),
     sessBgVolume: $('sess-bg-volume'),
 
     endTime: $('end-time'),
@@ -342,6 +342,22 @@
     doseFill: document.querySelector('.dose__fill'),
     doseNum: $('dose-num'),
     doseCaption: $('dose-caption'),
+
+    // My summary card
+    screenSummary: $('screen-summary'),
+    summaryTitle: $('summary-title'),
+    summarySub: $('summary-sub'),
+    sumSessions: $('sum-sessions'),
+    sumLifetime: $('sum-lifetime'),
+    sumRhythm: $('sum-rhythm'),
+    sumPoints: $('sum-points'),
+    sumWeek: $('sum-week'),
+    sumCalm: $('sum-calm'),
+    sumTrend: $('sum-trend'),
+    sumCalmNote: $('sum-calm-note'),
+    btnShareSummary: $('btn-share-summary'),
+    btnSummaryDone: $('btn-summary-done'),
+    btnSummaryCsv: $('btn-summary-csv'),
 
     // Calm overlay
     calmOverlay: $('calm-overlay'),
@@ -716,6 +732,51 @@
     musicFade(musicTarget(), 1.5);
   }
 
+  // Crossfade from the currently-playing track to a different one: detach the
+  // old graph and fade it out while the new one fades in (overlapping, no gap).
+  function musicCrossfadeTo(newTrackId) {
+    if (!audioCtx || !music.master) { musicStart(newTrackId, true); return; }
+    const rm = music.respectMute;
+    const oldMaster = music.master;
+    const oldEls = music.els.slice();
+    clearInterval(music.monitorId); music.monitorId = 0;
+    clearTimeout(music.teardownTimer); music.teardownTimer = 0;
+    // Detach the old graph from the global state so musicStart() builds fresh
+    // without hard-stopping the track we're still fading out.
+    music.master = null; music.els = []; music.nodes = []; music.gains = []; music.playing = false;
+    try {
+      const now = audioCtx.currentTime;
+      oldMaster.gain.cancelScheduledValues(now);
+      oldMaster.gain.setValueAtTime(Math.max(0.0001, oldMaster.gain.value), now);
+      oldMaster.gain.linearRampToValueAtTime(0.0001, now + 2.0); // gentle fade-out
+    } catch {}
+    setTimeout(() => {
+      oldEls.forEach((a) => { if (a) { try { a.pause(); a.src = ''; a.load(); } catch {} } });
+      try { oldMaster.disconnect(); } catch {}
+    }, 2300);
+    musicStart(newTrackId, rm); // builds + fades the new track in
+  }
+
+  // In-session ambient track change (from the audio panel). Crossfades live,
+  // never interrupts the breathing session. Persists the choice.
+  function selectSessionTrack(trackId) {
+    settings.bgTrack = trackId;
+    saveSettings();
+    if (trackId === 'off') {
+      music.wanted = false;
+      musicStop(1.2);
+    } else {
+      music.wanted = true;
+      if (music.master && music.playing && music.trackId !== trackId) {
+        musicCrossfadeTo(trackId);            // smooth swap while playing
+      } else if (!(music.master && music.trackId === trackId)) {
+        musicStart(trackId, true);            // wasn't playing → start it
+        if (session.paused) musicPauseForSession();
+      }
+    }
+    updateAudioButtons();
+  }
+
   // Master mute — silences cue tones (via the playTone guard) and smoothly fades
   // the background music, without stopping the session or losing preferences.
   function setMuted(m) {
@@ -729,11 +790,9 @@
     el.btnMute.setAttribute('aria-pressed', muted ? 'true' : 'false');
     el.btnMute.setAttribute('aria-label', muted ? 'Unmute all sound' : 'Mute all sound');
     setSwitch(el.sessOptSound, settings.sound);
-    const hasTrack = settings.bgTrack !== 'off';
-    setSwitch(el.sessOptMusic, music.wanted);
-    el.sessOptMusic.disabled = !hasTrack;
+    el.sessBgSelect.value = settings.bgTrack;
     el.sessBgVolume.value = String(Math.round(settings.bgVolume * 100));
-    el.sessBgVolume.disabled = !hasTrack;
+    el.sessBgVolume.disabled = (settings.bgTrack === 'off');
   }
 
   // ----- In-settings track preview (play/stop a short audition) -----
@@ -1109,6 +1168,7 @@
       start: el.screenStart,
       session: el.screenSession,
       end: el.screenEnd,
+      summary: el.screenSummary,
     };
     Object.entries(map).forEach(([k, node]) => { node.hidden = (k !== name); });
     // Reflect any in-session / profile changes back onto the start screen controls.
@@ -1120,6 +1180,7 @@
       start: el.btnStart,
       session: el.btnStop,   // always-reachable control
       end: el.btnRestart,
+      summary: el.btnSummaryDone,
     }[name];
     if (focusTarget) {
       // delay so the element is visible/focusable
@@ -1215,7 +1276,7 @@
       return;
     }
     const parts = [];
-    if (progress.streak.current > 0) parts.push(`🔥 ${progress.streak.current}-day rhythm`);
+    if (progress.streak.current > 0) parts.push(`🌿 ${progress.streak.current}-day rhythm`);
     if (progress.points > 0) parts.push(`${progress.points} pts`);
     const away = progress.streak.lastDate && dayDiff(progress.streak.lastDate, todayStr()) >= 2;
     let lead;
@@ -1426,26 +1487,71 @@
     L.push('🔒 Created on your device. Never uploaded.');
     return L.join('\n');
   }
+
+  // ---- In-app visual summary card ----
+  function weekStats() {
+    const now = Date.now();
+    const day = 86400000;
+    const t = { sessions: 0, ms: 0 };
+    const l = { sessions: 0, ms: 0 };
+    progress.history.forEach((h) => {
+      const age = now - h.ts;
+      if (age < 7 * day) { t.sessions++; t.ms += h.durationMs; }
+      else if (age < 14 * day) { l.sessions++; l.ms += h.durationMs; }
+    });
+    return { thisWeek: t, lastWeek: l };
+  }
+  function trendLine(w) {
+    const t = w.thisWeek, l = w.lastWeek;
+    if (t.sessions === 0 && l.sessions === 0) return "Your week is open — whenever you're ready, a quiet minute is enough.";
+    if (l.sessions === 0) return `You've practiced ${t.sessions} time${t.sessions === 1 ? '' : 's'} this week (${formatLong(t.ms)}) — a lovely start.`;
+    if (t.ms >= l.ms) return `${formatLong(t.ms)} this week vs ${formatLong(l.ms)} last week — gently building. 🌿`;
+    return `${formatLong(t.ms)} this week, ${formatLong(l.ms)} last week — every breath still counts; pick it back up whenever you like.`;
+  }
+  function renderSummaryCard() {
+    const name = (profile.name || '').trim();
+    el.summaryTitle.textContent = name ? `${name}'s progress` : 'Your progress';
+    el.summarySub.textContent = 'How your practice is going — only your own data, kept on your device.';
+    el.sumSessions.textContent = String(progress.history.length);
+    el.sumLifetime.textContent = formatLong(lifetimeMs());
+    el.sumRhythm.textContent = String(progress.streak.current);
+    el.sumPoints.textContent = String(progress.points);
+    el.sumWeek.textContent = String(weekStats().thisWeek.sessions);
+    const delta = calmDeltaAvg();
+    el.sumCalm.textContent = delta ? `${delta.avg >= 0 ? '+' : ''}${Math.round(delta.avg * 10) / 10}` : '—';
+    el.sumTrend.textContent = trendLine(weekStats());
+    if (delta) {
+      el.sumCalmNote.textContent = 'Avg calm is your own 1–5 self-rating (after − before) — not a measurement.';
+      el.sumCalmNote.hidden = false;
+    } else {
+      el.sumCalmNote.hidden = true;
+    }
+  }
+
   // ---- Gentle share: a warm invitation, never a competitive flex ----
   const SHARE_URL = 'https://mohammadelmekkawy-web.github.io/breathing-app/';
+  // Flash a brief confirmation on the share buttons' labels (clipboard fallback).
   function shareFlash() {
-    if (!el.btnShare) return;
-    const prev = el.btnShare.dataset.label || el.btnShare.textContent;
-    el.btnShare.dataset.label = prev;
-    el.btnShare.textContent = 'Invitation copied ✓';
+    const labels = document.querySelectorAll('.invite-label');
+    labels.forEach((n) => { if (!n.dataset.orig) n.dataset.orig = n.textContent; n.textContent = 'Invitation copied ✓'; });
     clearTimeout(shareFlash._t);
-    shareFlash._t = setTimeout(() => { el.btnShare.textContent = el.btnShare.dataset.label; }, 2200);
+    shareFlash._t = setTimeout(() => {
+      document.querySelectorAll('.invite-label').forEach((n) => { if (n.dataset.orig) n.textContent = n.dataset.orig; });
+    }, 2200);
   }
   async function shareInvite() {
     const text = "I've been taking a few quiet minutes to breathe and feel calmer lately — come try it with me 🌿";
-    try {
-      if (typeof navigator.share === 'function') {
-        await navigator.share({ title: 'Breathe', text, url: SHARE_URL });
-        return; // shared (or cancelled) — nothing more to do
+    const url = SHARE_URL;
+    if (typeof navigator.share === 'function') {
+      try {
+        await navigator.share({ title: 'Breathe', text, url });
+        return; // shared successfully
+      } catch (e) {
+        if (e && e.name === 'AbortError') return;   // user cancelled — fine, do nothing
+        // any other failure → fall through to clipboard so the button always works
       }
-    } catch { return; } // user dismissed the share sheet
-    // Fallbacks where Web Share isn't available:
-    const full = `${text}\n${SHARE_URL}`;
+    }
+    const full = `${text}\n${url}`;
     try { await navigator.clipboard.writeText(full); shareFlash(); return; } catch {}
     openExport('breathe-invite.txt', full, 'text/plain'); // last resort: show it to copy
   }
@@ -1562,8 +1668,16 @@
   el.optCalm.addEventListener('click', () => { settings.calmCheck = !settings.calmCheck; saveSettings(); renderStart(); });
   el.btnEditProfile.addEventListener('click', () => { renderOnboarding(); showScreen('onboarding'); });
   el.btnReplayWelcome.addEventListener('click', () => { armWelcomeChime(); showScreen('welcome'); });
-  el.btnExportSummary.addEventListener('click', () => openExport(`breathe-summary-${todayStr()}.txt`, buildSummary(), 'text/plain'));
+  // "My summary" opens the in-app visual card (not the raw export dialog).
+  el.btnExportSummary.addEventListener('click', () => { renderSummaryCard(); showScreen('summary'); });
   el.btnExportCsv.addEventListener('click', () => openExport(`breathe-data-${todayStr()}.csv`, buildCSV(), 'text/csv'));
+
+  // Summary card actions
+  el.btnSummaryDone.addEventListener('click', () => showScreen('start'));
+  el.btnSummaryCsv.addEventListener('click', () => openExport(`breathe-data-${todayStr()}.csv`, buildCSV(), 'text/csv'));
+  el.btnShareSummary.addEventListener('click', shareInvite);
+
+  // Gentle invite (dashboard + summary card)
   if (el.btnShare) el.btnShare.addEventListener('click', shareInvite);
 
   // ----- Export sheet -----
@@ -1601,16 +1715,10 @@
     updateAudioButtons();
   });
 
-  el.sessOptMusic.addEventListener('click', () => {
-    if (settings.bgTrack === 'off') return; // nothing chosen to play (toggle is disabled)
-    music.wanted = !music.wanted;
-    if (music.wanted) {
-      musicStart(settings.bgTrack, true);          // fades in (silent if muted)
-      if (session.paused) musicPauseForSession();  // stay silent until resume
-    } else {
-      musicStop(1.5);                              // fades out, then releases
-    }
-    updateAudioButtons();
+  // Change/turn off the ambient track mid-session (crossfades, never interrupts).
+  el.sessBgSelect.addEventListener('change', () => {
+    if (settings.sound || el.sessBgSelect.value !== 'off') initAudio(); // unlock on this gesture
+    selectSessionTrack(el.sessBgSelect.value);
   });
 
   el.sessBgVolume.addEventListener('input', () => {

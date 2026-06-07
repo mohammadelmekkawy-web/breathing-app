@@ -166,7 +166,17 @@ body {
 .opt-block { display: flex; flex-direction: column; gap: var(--s1); padding: var(--s2) 0; border-top: 1px solid var(--line); }
 
 /* Disabled controls (e.g. in-session music when no track is chosen) */
-.switch:disabled, .slider:disabled, .btn:disabled { opacity: 0.45; cursor: not-allowed; }
+.switch:disabled, .slider:disabled, .btn:disabled, .select:disabled { opacity: 0.45; cursor: not-allowed; }
+
+/* Compact native select (in-session ambient track picker) */
+.toggle--select { gap: var(--s2); }
+.select {
+  flex: 1 1 9rem; max-width: 12rem; min-height: var(--tap-ios);
+  padding: 0 var(--s2); border-radius: 0.7rem;
+  border: 1px solid var(--line); background: var(--surface-2); color: var(--text);
+  font: inherit; font-size: 0.95rem; cursor: pointer;
+}
+.select:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
 .segmented__btn {
   min-height: var(--tap);
   display: flex; flex-direction: column; align-items: center; justify-content: center;
@@ -559,16 +569,11 @@ body {
 
 .rhythm-note { color: var(--text-dim); font-size: 0.82rem; line-height: 1.45; margin: calc(-1 * var(--s2)) 0 var(--s3); text-align: center; opacity: 0.9; }
 
-/* Quiet, unobtrusive share invitation on the dashboard */
-.share-link {
-  display: inline-flex; align-items: center; justify-content: center; gap: 0.4rem;
-  min-height: var(--tap-ios); margin: var(--s3) auto 0; padding: 0 var(--s2);
-  background: none; border: 0; color: var(--text-dim); font: inherit; font-size: 0.95rem;
-  cursor: pointer; border-radius: var(--radius);
-  text-decoration: underline; text-underline-offset: 3px; text-decoration-thickness: 1px;
-}
-.share-link:hover { color: var(--text); }
+/* Calm "invite a friend" button (dashboard + summary card) */
+.btn--invite { display: inline-flex; align-items: center; justify-content: center; gap: 0.5rem; }
+.btn--invite .icon-leaf { width: 1.15rem; height: 1.15rem; flex: none; color: var(--accent); }
 .end__milestone { color: var(--text-dim); font-size: 0.95rem; margin: 0 0 var(--s2); line-height: 1.45; }
+.end__trend { color: var(--text); font-size: 1rem; margin: 0 0 var(--s2); line-height: 1.5; font-weight: 500; }
 .end__calm { color: var(--text); font-size: 1rem; margin: 0 0 var(--s3); font-weight: 500; }
 
 /* ===================== CALM-CHECK OVERLAY ===================== */

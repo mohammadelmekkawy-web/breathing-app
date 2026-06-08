@@ -297,6 +297,7 @@
     breathMethod: $('breath-method'),
     breathCue: $('breath-cue'),
     breathSymbol: $('breath-symbol'),
+    breathChest: $('breath-chest'),
     ringFill: document.querySelector('.ring__fill'),
     btnPause: $('btn-pause'),
     btnStop: $('btn-stop'),
@@ -786,8 +787,9 @@
     el.phaseLabel.textContent = phase.label;
     el.phaseLabelLiquid.textContent = phase.label;
 
-    // Mode-specific technique cue: nose / mouth / figure symbol + airflow + text.
-    // Coherent breathing exhales through the nose; holds show the figure.
+    // Cue beside the figure: nose/mouth symbol + airflow. The figure itself
+    // (with its filling chest) is persistent and synced in render(). On a hold,
+    // the symbol + arrows fade out and the figure simply stays at its fill level.
     el.breathCue.classList.remove('is-in', 'is-out', 'is-hold');
     if (phase.label === 'Inhale') {
       el.breathSymbol.src = 'assets/nose.png';
@@ -799,7 +801,6 @@
       el.breathMethod.textContent = nasal ? 'out through your nose' : 'out through your mouth';
       el.breathCue.classList.add('is-out');
     } else { // Hold
-      el.breathSymbol.src = 'assets/figure.png';
       el.breathMethod.textContent = 'hold gently';
       el.breathCue.classList.add('is-hold');
     }
@@ -1062,9 +1063,24 @@
     ctx.restore();
   }
 
+  // Sync the cue figure's chest glow to the breath fullness (0..1).
+  function updateBreathFigure(fullness) {
+    if (!el.breathChest) return;
+    el.breathChest.style.opacity = (0.12 + 0.88 * fullness).toFixed(3);
+    el.breathChest.style.transform =
+      'translate(-50%, -50%) scale(' + (0.7 + 0.45 * fullness).toFixed(3) + ')';
+  }
+
   function render() {
     const phase = session.phases[session.phaseIndex];
     const t = clamp(session.phaseElapsed / phase.dur, 0, 1);
+    // Eased breath "fullness" (0..1) from the single timer — drives the orb AND
+    // the cue figure's chest so they fill together, for every mode.
+    const fullness = clamp(
+      ((phase.from + (phase.to - phase.from) * easeInOutSine(t)) - SCALE_MIN) / (SCALE_MAX - SCALE_MIN),
+      0, 1
+    );
+    updateBreathFigure(fullness);
 
     // ----- Countdown (prominent, immediate) -----
     const remaining = Math.max(1, Math.ceil((phase.dur - session.phaseElapsed) / 1000));
@@ -1080,10 +1096,7 @@
     el.liquidContainer.hidden = !wantLiquid;
 
     if (wantLiquid) {
-      // Fill = eased breath "fullness" from the SAME single timer, so it stays
-      // locked to the breath and works for every mode (incl. holds & custom).
-      const scaleNow = phase.from + (phase.to - phase.from) * easeInOutSine(t);
-      const fullness = clamp((scaleNow - SCALE_MIN) / (SCALE_MAX - SCALE_MIN), 0, 1);
+      // Uses the eased breath "fullness" computed above (locked to the breath).
       // 3D only when chosen, motion allowed, and the module is ready; otherwise
       // the 2D orb is used (also the calm flat fill under reduced-motion).
       const want3d = (style === 'liquid3d') && !prefersReducedMotion();

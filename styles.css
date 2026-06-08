@@ -576,9 +576,19 @@ body {
 .learn-orb__canvas { width: 100%; height: 100%; display: block; border-radius: 50%; }
 .learn-orb__ring { position: absolute; inset: 0; border-radius: 50%; border: 3px solid var(--ring-fill); box-shadow: 0 0 14px rgba(239,212,154,0.4); pointer-events: none; }
 .learn-figure { position: relative; width: clamp(6rem, 30vw, 8.5rem); height: clamp(6rem, 30vw, 8.5rem); flex: none; overflow: visible; }
-/* Nose/mouth symbol sitting between the figure and the orb (swaps per phase) */
-.learn-symbol { width: clamp(2rem, 11vw, 2.8rem); height: clamp(2rem, 11vw, 2.8rem); flex: none; object-fit: contain; align-self: center; transition: opacity 0.4s ease; filter: drop-shadow(0 0 4px rgba(159,210,243,0.7)); }
+/* Big nose/mouth symbol between the figure and the orb, carrying the airflow arrows */
+.learn-symbol { position: relative; width: clamp(3.4rem, 17vw, 4.8rem); height: clamp(3.4rem, 17vw, 4.8rem); flex: none; align-self: center; transition: opacity 0.4s ease; }
+.learn-symbol__img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; filter: drop-shadow(0 0 5px rgba(159,210,243,0.75)); }
+.learn-symbol__flow { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; filter: drop-shadow(0 0 3px rgba(159,210,243,0.7)); }
+.learn-symbol__flow .lflow-in, .learn-symbol__flow .lflow-out { opacity: 0; }
+.learn-symbol__flow path { stroke-dasharray: 7 6; }
+.learn__scene.is-inhale .lflow-in { opacity: 0.95; }
+.learn__scene.is-exhale .lflow-out { opacity: 0.95; }
 .learn__scene.is-hold .learn-symbol { opacity: 0; }
+@media (prefers-reduced-motion: no-preference) {
+  .learn__scene.is-inhale .lflow-in path { animation: air-flow-in 1.5s linear infinite; }
+  .learn__scene.is-exhale .lflow-out path { animation: air-flow-out 1.6s linear infinite; }
+}
 .learn-figure__img { width: 100%; height: 100%; object-fit: contain; display: block; -webkit-user-select: none; user-select: none; }
 /* Soft glow in the chest/lungs area — brightens & swells with the breath (opacity/scale set in JS) */
 .learn-figure__glow {

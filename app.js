@@ -610,9 +610,9 @@
   let musicEl = null;        // the single looping <audio> element (current track)
   let musicFadeTimer = 0;
   const musicVol = (v) => Math.max(0, Math.min(1, v));
-  // Ceiling on the ambient track so even at max slider it stays UNDER the
-  // breathing cue tones (which sit ~0.12). 0.7 = 30% lower max than before.
-  const MUSIC_MAX = 0.7;
+  // Ceiling on the ambient track so even at max slider it stays well UNDER the
+  // breathing cue tones (which sit ~0.12). 0.49 = another 30% lower (0.7 × 0.7).
+  const MUSIC_MAX = 0.49;
   const musicTarget = () => musicVol(settings.bgVolume) * MUSIC_MAX;
 
   // Smoothly ramp element.volume to a target over `seconds` (no-op on iOS, where

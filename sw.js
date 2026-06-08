@@ -16,7 +16,7 @@
 
 // ⚠️  Do not hand-edit unless you know why — tools/deploy.sh rewrites this line
 //     with a unique timestamp+commit on every deploy so caches always bust.
-const VERSION = '2026.06.07-192925-c2e89b0';
+const VERSION = '2026.06.08-070525-2b13344';
 
 const CACHE = `breathe-${VERSION}`;
 
@@ -33,6 +33,8 @@ const ASSETS = [
   './icons/icon-512-maskable.png',
   './icons/apple-touch-icon.png',
   './assets/figure.png',              // "How it works" walkthrough figure
+  './assets/nose.png',                // in-session technique cue symbols
+  './assets/mouth.png',
 ];
 
 // Shell = things that change every release → network-first. The vendor library

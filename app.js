@@ -295,6 +295,8 @@
     phaseLabel: $('phase-label'),
     count: $('count'),
     breathMethod: $('breath-method'),
+    breathCue: $('breath-cue'),
+    breathSymbol: $('breath-symbol'),
     ringFill: document.querySelector('.ring__fill'),
     btnPause: $('btn-pause'),
     btnStop: $('btn-stop'),
@@ -793,10 +795,20 @@
     el.phaseLabel.textContent = phase.label;
     el.phaseLabelLiquid.textContent = phase.label;
 
-    // Mode-specific technique cue (fades out on holds).
-    const method = breathMethodText(session.mode, phase.label);
-    el.breathMethod.textContent = method;
-    el.breathMethod.classList.toggle('is-on', !!method);
+    // Mode-specific technique cue: nose/mouth symbol + airflow arrows + text.
+    // Fades out on holds. Coherent breathing exhales through the nose too.
+    if (phase.label === 'Inhale' || phase.label === 'Exhale') {
+      const nasalExhale = session.mode === 'coherent';
+      const useNose = (phase.label === 'Inhale') || nasalExhale;
+      el.breathSymbol.src = useNose ? 'assets/nose.png' : 'assets/mouth.png';
+      el.breathMethod.textContent = breathMethodText(session.mode, phase.label);
+      el.breathCue.classList.remove('is-in', 'is-out');
+      el.breathCue.classList.add(phase.label === 'Inhale' ? 'is-in' : 'is-out');
+      el.breathCue.classList.add('is-on');
+    } else {
+      el.breathCue.classList.remove('is-on', 'is-in', 'is-out');
+      el.breathMethod.textContent = '';
+    }
 
     // Immediate-feedback countdown starts at full seconds
     const total = Math.round(phase.dur / 1000);

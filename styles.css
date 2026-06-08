@@ -575,7 +575,10 @@ body {
 .learn-orb { position: relative; width: clamp(6rem, 30vw, 8.5rem); height: clamp(6rem, 30vw, 8.5rem); flex: none; filter: drop-shadow(0 0 16px rgba(127,182,207,0.35)); }
 .learn-orb__canvas { width: 100%; height: 100%; display: block; border-radius: 50%; }
 .learn-orb__ring { position: absolute; inset: 0; border-radius: 50%; border: 3px solid var(--ring-fill); box-shadow: 0 0 14px rgba(239,212,154,0.4); pointer-events: none; }
-.learn-figure { position: relative; width: clamp(7rem, 36vw, 10rem); height: clamp(7rem, 36vw, 10rem); flex: none; overflow: visible; }
+.learn-figure { position: relative; width: clamp(6rem, 30vw, 8.5rem); height: clamp(6rem, 30vw, 8.5rem); flex: none; overflow: visible; }
+/* Nose/mouth symbol sitting between the figure and the orb (swaps per phase) */
+.learn-symbol { width: clamp(2rem, 11vw, 2.8rem); height: clamp(2rem, 11vw, 2.8rem); flex: none; object-fit: contain; align-self: center; transition: opacity 0.4s ease; filter: drop-shadow(0 0 4px rgba(159,210,243,0.7)); }
+.learn__scene.is-hold .learn-symbol { opacity: 0; }
 .learn-figure__img { width: 100%; height: 100%; object-fit: contain; display: block; -webkit-user-select: none; user-select: none; }
 /* Soft glow in the chest/lungs area — brightens & swells with the breath (opacity/scale set in JS) */
 .learn-figure__glow {

@@ -128,6 +128,9 @@
             </svg>
           </div>
 
+          <!-- Nose / mouth symbol between the figure and the orb (swaps per phase, hidden on hold) -->
+          <img class="learn-symbol" id="learn-symbol" src="assets/nose.png" alt="" aria-hidden="true" draggable="false" />
+
           <!-- The orb — the real glowing liquid orb, rendered on canvas like a session -->
           <div class="learn-orb">
             <canvas class="learn-orb__canvas" id="learn-orb-canvas" aria-hidden="true"></canvas>
@@ -139,9 +142,10 @@
         <p class="learn__cue" id="learn-cue">slowly, through your nose</p>
 
         <ol class="learn__steps" id="learn-steps">
-          <li data-phase="inhale" class="is-active"><span class="learn__step-n">1</span> Breathe in</li>
-          <li data-phase="hold"><span class="learn__step-n">2</span> Hold</li>
-          <li data-phase="exhale"><span class="learn__step-n">3</span> Breathe out</li>
+          <li class="is-active"><span class="learn__step-n">1</span> Breathe in</li>
+          <li><span class="learn__step-n">2</span> Hold</li>
+          <li><span class="learn__step-n">3</span> Breathe out</li>
+          <li><span class="learn__step-n">4</span> Hold</li>
         </ol>
 
         <!-- Reduced-motion / screen-reader friendly description -->
@@ -149,6 +153,7 @@
           <p><strong>1. Breathe in</strong> slowly through your nose — fill up, like the circle.</p>
           <p><strong>2. Hold</strong> gently for a few seconds.</p>
           <p><strong>3. Breathe out</strong> slowly through your mouth — let the circle empty.</p>
+          <p><strong>4. Hold</strong> gently again before the next breath.</p>
           <p>That's one breath. The app guides the timing for you.</p>
         </div>
 

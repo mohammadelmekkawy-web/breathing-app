@@ -325,6 +325,7 @@
     // How it works (beginner walkthrough)
     screenLearn: $('screen-learn'),
     learnScene: $('learn-scene'),
+    learnSymbol: $('learn-symbol'),
     learnOrbCanvas: $('learn-orb-canvas'),
     learnChestGlow: $('learn-chest-glow'),
     learnPhase: $('learn-phase'),
@@ -1356,8 +1357,15 @@
      the nose and out the mouth. Self-contained loop, separate from the
      session engine. Reduced-motion shows a static text version.
      ======================================================= */
-  const learn = { raf: 0, t0: 0, returnTo: 'start', lastPhase: '' };
-  const LEARN_PHASES = { in: 4000, hold: 4000, out: 4000 }; // 12s loop, gentle box-style
+  const learn = { raf: 0, t0: 0, returnTo: 'start', lastStep: -1 };
+  // Full box cycle so the tutorial matches the exercise: in → hold → out → hold.
+  const LEARN_SEQ = [
+    { key: 'inhale', label: 'Breathe in',  cue: 'slowly, through your nose',   dur: 4000 },
+    { key: 'hold',   label: 'Hold',        cue: 'keep it soft and easy',       dur: 4000 },
+    { key: 'exhale', label: 'Breathe out', cue: 'slowly, through your mouth',   dur: 4000 },
+    { key: 'hold',   label: 'Hold',        cue: 'rest before the next breath',  dur: 4000 },
+  ];
+  const LEARN_TOTAL = 16000;
   const easeInOut = (p) => 0.5 - 0.5 * Math.cos(Math.PI * clamp(p, 0, 1));
 
   // The walkthrough renders the SAME liquid orb as a session (its own instance/canvas).
@@ -1383,40 +1391,40 @@
       'translate(-50%, -50%) scale(' + (0.7 + 0.5 * fill).toFixed(3) + ')';
   }
 
-  function setLearnPhase(phase, label, cue) {
-    if (phase === learn.lastPhase) return;
-    learn.lastPhase = phase;
+  function setLearnStep(i, seg) {
+    if (i === learn.lastStep) return;
+    learn.lastStep = i;
     el.learnScene.classList.remove('is-inhale', 'is-hold', 'is-exhale');
-    el.learnScene.classList.add('is-' + phase);
-    el.learnPhase.textContent = label;
-    el.learnCue.textContent = cue;
-    el.learnSteps.querySelectorAll('li').forEach((li) => {
-      li.classList.toggle('is-active', li.getAttribute('data-phase') === phaseKey(phase));
+    el.learnScene.classList.add('is-' + seg.key);
+    el.learnPhase.textContent = seg.label;
+    el.learnCue.textContent = seg.cue;
+    if (seg.key === 'inhale') el.learnSymbol.src = 'assets/nose.png';
+    else if (seg.key === 'exhale') el.learnSymbol.src = 'assets/mouth.png';
+    // (holds keep the last symbol; CSS hides it during the hold)
+    el.learnSteps.querySelectorAll('li').forEach((li, idx) => {
+      li.classList.toggle('is-active', idx === i);
     });
   }
-  // map animation phase -> step list data-phase
-  function phaseKey(p) { return p === 'inhale' ? 'inhale' : p === 'exhale' ? 'exhale' : 'hold'; }
 
   function learnTick(ts) {
     if (!learn.t0) learn.t0 = ts;
-    const total = LEARN_PHASES.in + LEARN_PHASES.hold + LEARN_PHASES.out;
-    const t = (ts - learn.t0) % total;
-    if (t < LEARN_PHASES.in) {
-      setLearnPhase('inhale', 'Breathe in', 'slowly, through your nose');
-      setLearnFill(easeInOut(t / LEARN_PHASES.in), ts);
-    } else if (t < LEARN_PHASES.in + LEARN_PHASES.hold) {
-      setLearnPhase('hold', 'Hold', 'keep it soft and easy');
-      setLearnFill(1, ts);
-    } else {
-      setLearnPhase('exhale', 'Breathe out', 'slowly, through your mouth');
-      setLearnFill(1 - easeInOut((t - LEARN_PHASES.in - LEARN_PHASES.hold) / LEARN_PHASES.out), ts);
-    }
+    let t = (ts - learn.t0) % LEARN_TOTAL;
+    let i = 0;
+    while (i < LEARN_SEQ.length - 1 && t >= LEARN_SEQ[i].dur) { t -= LEARN_SEQ[i].dur; i++; }
+    const seg = LEARN_SEQ[i];
+    const p = t / seg.dur;
+    let fill;
+    if (seg.key === 'inhale') fill = easeInOut(p);
+    else if (seg.key === 'exhale') fill = 1 - easeInOut(p);
+    else fill = (i === 1) ? 1 : 0; // hold after inhale = full, after exhale = empty
+    setLearnStep(i, seg);
+    setLearnFill(fill, ts);
     learn.raf = requestAnimationFrame(learnTick);
   }
 
   function startLearnDemo() {
     stopLearnDemo();
-    learn.lastPhase = '';
+    learn.lastStep = -1;
     if (prefersReducedMotion()) {
       // No looping animation — show a clear, static description instead.
       el.learnStatic.hidden = false;

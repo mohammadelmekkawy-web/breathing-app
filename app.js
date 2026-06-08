@@ -2086,16 +2086,24 @@
     if (e.key === 'Escape') { e.preventDefault(); closeGear(); }
   });
 
-  // Always-on ambient music: start on the very first user gesture anywhere
-  // (autoplay policies block audio before any interaction). One-shot.
-  function primeMusicOnce() {
-    document.removeEventListener('pointerdown', primeMusicOnce);
-    document.removeEventListener('keydown', primeMusicOnce);
+  // Always-on ambient music: start on the user's first gesture anywhere
+  // (autoplay policies block audio before any interaction). We listen on
+  // several gesture types — `click`/`touchend` reliably grant media playback
+  // permission, whereas `pointerdown` alone does NOT on many mobile browsers —
+  // and we keep trying on each gesture until the music is actually playing,
+  // then stop. (Previously this was one-shot on pointerdown, so a rejected
+  // first play() meant no music until something else called startMusic().)
+  const PRIME_EVENTS = ['pointerdown', 'touchend', 'click', 'keydown'];
+  function primeMusic() {
     initAudio();
     startMusic();
+    // Done once there's nothing to play, or the track is actually audible.
+    if (settings.bgTrack === 'off' || (musicEl && !musicEl.paused)) {
+      PRIME_EVENTS.forEach((ev) => document.removeEventListener(ev, primeMusic, true));
+    }
   }
-  document.addEventListener('pointerdown', primeMusicOnce, { once: false });
-  document.addEventListener('keydown', primeMusicOnce, { once: false });
+  // Capture phase so we still catch the gesture even if a handler stops propagation.
+  PRIME_EVENTS.forEach((ev) => document.addEventListener(ev, primeMusic, true));
 
   // Keyboard: Space toggles pause during a session; Escape stops.
   document.addEventListener('keydown', (e) => {

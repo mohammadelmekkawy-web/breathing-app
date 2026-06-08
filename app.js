@@ -84,7 +84,7 @@
     sound: true,
     haptic: true,
     theme: 'dark',      // 'dark' | 'light'
-    animationStyle: 'liquid',  // 'liquid' (2D orb) or 'liquid3d' (3D orb)
+    animationStyle: 'liquid3d',  // always the 3D orb (2D is only an internal fallback)
     bgTrack: 'leberch', // ambient music (on by default): 'off' | 'leberch' | 'starostin'
     bgVolume: 0.5,      // background music volume (0..1)
     calmCheck: true,    // optional before/after calm self-rating
@@ -104,7 +104,7 @@
         sound: s.sound !== false,
         haptic: s.haptic !== false,
         theme: s.theme === 'light' ? 'light' : 'dark',
-        animationStyle: (s.animationStyle === 'liquid3d') ? 'liquid3d' : 'liquid', // 'circle' (legacy) → 2D orb
+        animationStyle: 'liquid3d', // always 3D now (render() falls back to 2D only for reduced-motion / no-WebGL)
         bgTrack: ['off', 'leberch', 'starostin'].includes(s.bgTrack) ? s.bgTrack : 'off',
         bgVolume: clamp(parseFloat(s.bgVolume != null ? s.bgVolume : s.soundscapeVolume) || DEFAULTS.bgVolume, 0, 1),
         calmCheck: s.calmCheck !== false,
@@ -316,7 +316,6 @@
     orb3dCanvas: $('orb3d-canvas'),
     phaseLabelLiquid: $('phase-label-liquid'),
     countLiquid: $('count-liquid'),
-    optVisual: $('opt-visual'),
 
     // Welcome
     screenWelcome: $('screen-welcome'),
@@ -451,7 +450,6 @@
     // Toggles
     setSwitch(el.optSound, settings.sound);
     setSwitch(el.optHaptic, settings.haptic);
-    el.optVisual.value = settings.animationStyle;
     setSwitch(el.optCalm, settings.calmCheck);
     setSwitch(el.optTheme, settings.theme === 'light');
 
@@ -518,11 +516,6 @@
     settings.bgVolume = clamp(parseInt(el.bgVolume.value, 10) / 100 || 0, 0, 1);
     saveSettings();
     setMusicVolume(); // live-adjust (honoured on desktop/Android)
-  });
-  el.optVisual.addEventListener('change', () => {
-    settings.animationStyle = (el.optVisual.value === 'liquid3d') ? 'liquid3d' : 'liquid';
-    saveSettings();
-    renderStart();
   });
   el.optTheme.addEventListener('click', () => {
     settings.theme = settings.theme === 'light' ? 'dark' : 'light';
@@ -617,6 +610,10 @@
   let musicEl = null;        // the single looping <audio> element (current track)
   let musicFadeTimer = 0;
   const musicVol = (v) => Math.max(0, Math.min(1, v));
+  // Ceiling on the ambient track so even at max slider it stays UNDER the
+  // breathing cue tones (which sit ~0.12). 0.7 = 30% lower max than before.
+  const MUSIC_MAX = 0.7;
+  const musicTarget = () => musicVol(settings.bgVolume) * MUSIC_MAX;
 
   // Smoothly ramp element.volume to a target over `seconds` (no-op on iOS, where
   // volume is read-only — there it simply jumps/stays at the system level).
@@ -652,7 +649,7 @@
     musicEl = a;
     const p = a.play();
     if (p && p.catch) p.catch(() => {}); // blocked before a gesture; a later gesture retries
-    musicFadeTo(musicVol(settings.bgVolume), 1.4, false);
+    musicFadeTo(musicTarget(), 1.4, false);
   }
 
   // Always-on ambient music: plays continuously across the WHOLE app (welcome →
@@ -665,7 +662,7 @@
     if (!track) return;
     if (musicEl && musicEl.dataset.track === settings.bgTrack) {
       if (musicEl.paused) { const p = musicEl.play(); if (p && p.catch) p.catch(() => {}); }
-      musicFadeTo(musicVol(settings.bgVolume), 1.0, false);
+      musicFadeTo(musicTarget(), 1.0, false);
       return; // already on this track
     }
     buildMusicEl(track);
@@ -680,7 +677,7 @@
 
   // Live volume from the gear slider (gentle ramp; no-op on iOS).
   function setMusicVolume() {
-    if (musicEl && !musicEl.paused) musicFadeTo(musicVol(settings.bgVolume), 0.2, false);
+    if (musicEl && !musicEl.paused) musicFadeTo(musicTarget(), 0.2, false);
   }
 
   /* ---------- Haptics ---------- */

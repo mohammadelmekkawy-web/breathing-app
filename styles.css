@@ -166,15 +166,16 @@ body {
   position: fixed;
   top: calc(env(safe-area-inset-top) + var(--s2));
   right: calc(env(safe-area-inset-right) + var(--s2));
-  z-index: 40;
-  width: 2.75rem; height: 2.75rem; padding: 0;
+  z-index: 45;
+  width: 2.9rem; height: 2.9rem; padding: 0;
   display: grid; place-items: center;
-  border-radius: 50%; border: 1px solid var(--line);
-  background: var(--surface); color: var(--text-dim);
-  cursor: pointer; box-shadow: 0 2px 10px var(--shadow);
+  border-radius: 50%; border: 1px solid var(--accent);
+  background: var(--surface-2); color: var(--accent);
+  cursor: pointer;
+  box-shadow: 0 2px 12px var(--shadow), 0 0 16px -3px var(--accent);
 }
-.gearbtn:hover { color: var(--text); background: var(--surface-2); }
-.gearbtn svg { width: 1.4rem; height: 1.4rem; }
+.gearbtn:hover, .gearbtn:focus-visible { color: var(--primary-ink); background: var(--accent); }
+.gearbtn svg { width: 1.55rem; height: 1.55rem; }
 .overlay__card--settings { max-width: 24rem; text-align: left; max-height: 85vh; overflow-y: auto; }
 .settings-list { display: flex; flex-direction: column; margin: var(--s2) 0 var(--s3); }
 .settings-list .toggle:first-child, .settings-list .opt-block:first-child { border-top: 0; }

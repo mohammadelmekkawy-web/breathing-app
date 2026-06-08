@@ -779,15 +779,6 @@
     session.rafId = requestAnimationFrame(tick);
   }
 
-  // Mode-specific breathing technique: where the air should go.
-  // Box & 4-7-8: in through nose, out through mouth. Coherent: nose both ways
-  // (smooth nasal breathing). Holds & custom inhales default to the nose.
-  function breathMethodText(mode, label) {
-    if (label === 'Inhale') return 'in through your nose';
-    if (label === 'Exhale') return mode === 'coherent' ? 'out through your nose' : 'out through your mouth';
-    return ''; // Hold — no cue
-  }
-
   function enterPhase(index, announce) {
     session.phaseIndex = index;
     session.phaseElapsed = 0;
@@ -795,20 +786,24 @@
     el.phaseLabel.textContent = phase.label;
     el.phaseLabelLiquid.textContent = phase.label;
 
-    // Mode-specific technique cue: nose/mouth symbol + airflow arrows + text.
-    // Fades out on holds. Coherent breathing exhales through the nose too.
-    if (phase.label === 'Inhale' || phase.label === 'Exhale') {
-      const nasalExhale = session.mode === 'coherent';
-      const useNose = (phase.label === 'Inhale') || nasalExhale;
-      el.breathSymbol.src = useNose ? 'assets/nose.png' : 'assets/mouth.png';
-      el.breathMethod.textContent = breathMethodText(session.mode, phase.label);
-      el.breathCue.classList.remove('is-in', 'is-out');
-      el.breathCue.classList.add(phase.label === 'Inhale' ? 'is-in' : 'is-out');
-      el.breathCue.classList.add('is-on');
-    } else {
-      el.breathCue.classList.remove('is-on', 'is-in', 'is-out');
-      el.breathMethod.textContent = '';
+    // Mode-specific technique cue: nose / mouth / figure symbol + airflow + text.
+    // Coherent breathing exhales through the nose; holds show the figure.
+    el.breathCue.classList.remove('is-in', 'is-out', 'is-hold');
+    if (phase.label === 'Inhale') {
+      el.breathSymbol.src = 'assets/nose.png';
+      el.breathMethod.textContent = 'in through your nose';
+      el.breathCue.classList.add('is-in');
+    } else if (phase.label === 'Exhale') {
+      const nasal = session.mode === 'coherent';
+      el.breathSymbol.src = nasal ? 'assets/nose.png' : 'assets/mouth.png';
+      el.breathMethod.textContent = nasal ? 'out through your nose' : 'out through your mouth';
+      el.breathCue.classList.add('is-out');
+    } else { // Hold
+      el.breathSymbol.src = 'assets/figure.png';
+      el.breathMethod.textContent = 'hold gently';
+      el.breathCue.classList.add('is-hold');
     }
+    el.breathCue.classList.add('is-on');
 
     // Immediate-feedback countdown starts at full seconds
     const total = Math.round(phase.dur / 1000);

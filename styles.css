@@ -480,22 +480,23 @@ body {
 
 /* Mode-specific technique cue under the orb: nose/mouth symbol + airflow + text */
 .breath-cue {
-  display: flex; flex-direction: column; align-items: center; gap: 2px;
-  margin: 0 0 var(--s2); min-height: 4.6rem;
+  display: flex; flex-direction: column; align-items: center; gap: var(--s1);
+  margin: 0 0 var(--s2); min-height: 5.6rem;
   opacity: 0; transition: opacity 0.45s ease;
 }
 .breath-cue.is-on { opacity: 1; }
-.breath-cue__icon { position: relative; width: 2.5rem; height: 2.5rem; }
-.breath-cue__symbol { width: 100%; height: 100%; object-fit: contain; display: block; -webkit-user-select: none; user-select: none; }
-.breath-flow {
-  position: absolute; left: 50%; transform: translateX(-50%);
-  top: 86%; width: 2.6rem; height: 1.3rem; overflow: visible;
-  filter: drop-shadow(0 0 2px rgba(159,210,243,0.6));
+.breath-cue__art { position: relative; width: 3.6rem; height: 3.6rem; }
+.breath-cue__symbol {
+  position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; display: block;
+  -webkit-user-select: none; user-select: none;
+  filter: drop-shadow(0 0 4px rgba(159,210,243,0.8)) drop-shadow(0 0 10px rgba(159,210,243,0.45));
 }
+.breath-flow { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; filter: drop-shadow(0 0 3px rgba(159,210,243,0.7)); }
 .breath-flow .flow-in, .breath-flow .flow-out { opacity: 0; }
 .breath-flow path { stroke-dasharray: 7 6; }
 .breath-cue.is-in  .flow-in  { opacity: 0.95; }
 .breath-cue.is-out .flow-out { opacity: 0.95; }
+/* is-hold: figure shown, no airflow */
 .breath-method { margin: 0; text-align: center; color: var(--text-dim); font-size: 1.02rem; letter-spacing: 0.01em; }
 @media (prefers-reduced-motion: no-preference) {
   .breath-cue.is-in  .flow-in  path { animation: air-flow-in  1.5s linear infinite; }

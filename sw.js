@@ -16,7 +16,7 @@
 
 // ⚠️  Do not hand-edit unless you know why — tools/deploy.sh rewrites this line
 //     with a unique timestamp+commit on every deploy so caches always bust.
-const VERSION = '2026.06.11-163943-2ffb650';
+const VERSION = '2026.06.11-170641-c9f0a79';
 
 const CACHE = `breathe-${VERSION}`;
 

@@ -363,6 +363,7 @@
     btnStop: $('btn-stop'),
     qcTheme: $('qc-theme'),
     qcMusic: $('qc-music'),
+    qcVolume: $('qc-volume'),
 
     endTime: $('end-time'),
     endCount: $('end-count'),
@@ -586,6 +587,7 @@
   });
   el.bgVolume.addEventListener('input', () => {
     settings.bgVolume = clamp(parseInt(el.bgVolume.value, 10) / 100 || 0, 0, 1);
+    el.qcVolume.value = el.bgVolume.value; // keep the in-session bar in step
     saveSettings();
     setMusicVolume(); // live-adjust (honoured on desktop/Android)
   });
@@ -596,8 +598,17 @@
 
   /* ---------- In-session quick controls (theme + ambient music) ---------- */
   function updateQcMusic() {
-    el.qcMusic.setAttribute('aria-pressed', settings.bgTrack !== 'off' ? 'true' : 'false');
+    const on = settings.bgTrack !== 'off';
+    el.qcMusic.setAttribute('aria-pressed', on ? 'true' : 'false');
+    el.qcVolume.hidden = !on;
+    el.qcVolume.value = String(Math.round(settings.bgVolume * 100));
   }
+  el.qcVolume.addEventListener('input', () => {
+    settings.bgVolume = clamp(parseInt(el.qcVolume.value, 10) / 100 || 0, 0, 1);
+    el.bgVolume.value = el.qcVolume.value; // keep the Settings slider in step
+    saveSettings();
+    setMusicVolume(); // live-adjust (honoured on desktop/Android; iOS uses hardware volume)
+  });
   el.qcTheme.addEventListener('click', () => {
     settings.theme = settings.theme === 'light' ? 'dark' : 'light';
     saveSettings(); applyTheme();

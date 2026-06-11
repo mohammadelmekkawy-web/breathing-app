@@ -252,8 +252,10 @@
     <section id="screen-session" class="screen screen--session" aria-labelledby="phase-label" hidden>
       <!-- Quick controls — the two things you may need mid-breath, kept tiny & dim -->
       <div class="quick-controls">
+        <input type="range" class="slider qc-vol" id="qc-volume" min="0" max="100" step="1" value="50" aria-label="Ambient music volume" />
         <button type="button" class="qc-btn" id="qc-theme" aria-label="Toggle light or dark theme">
-          <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A8.7 8.7 0 1 1 11.2 3a6.8 6.8 0 0 0 9.8 9.8z"/></svg>
+          <svg class="qc-icon-moon" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A8.7 8.7 0 1 1 11.2 3a6.8 6.8 0 0 0 9.8 9.8z"/></svg>
+          <svg class="qc-icon-sun" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4.5"/><line x1="12" y1="2" x2="12" y2="4.6"/><line x1="12" y1="19.4" x2="12" y2="22"/><line x1="2" y1="12" x2="4.6" y2="12"/><line x1="19.4" y1="12" x2="22" y2="12"/><line x1="4.9" y1="4.9" x2="6.8" y2="6.8"/><line x1="17.2" y1="17.2" x2="19.1" y2="19.1"/><line x1="4.9" y1="19.1" x2="6.8" y2="17.2"/><line x1="17.2" y1="6.8" x2="19.1" y2="4.9"/></svg>
         </button>
         <button type="button" class="qc-btn" id="qc-music" aria-label="Toggle ambient music" aria-pressed="true">
           <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l11-2v13"/><circle cx="6.5" cy="18" r="2.5"/><circle cx="17.5" cy="16" r="2.5"/><line class="qc-slash" x1="4" y1="4" x2="21" y2="21"/></svg>

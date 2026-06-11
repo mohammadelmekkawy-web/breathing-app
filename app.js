@@ -140,6 +140,7 @@
     mood: 'sky',        // mood palette: sky | night | desert | forest | ocean | zen
     animationStyle: 'liquid3d',  // always the 3D orb (2D is only an internal fallback)
     bgTrack: 'leberch', // ambient music (on by default): 'off' | 'leberch' | 'starostin'
+    lastBgTrack: 'leberch', // remembered track for the quick music toggle
     bgVolume: 0.5,      // background music volume (0..1)
     calmCheck: true,    // optional before/after calm self-rating
   };
@@ -161,6 +162,7 @@
         mood: MOODS[s.mood] ? s.mood : 'sky',
         animationStyle: 'liquid3d', // always 3D now (render() falls back to 2D only for reduced-motion / no-WebGL)
         bgTrack: ['off', 'leberch', 'starostin'].includes(s.bgTrack) ? s.bgTrack : 'off',
+        lastBgTrack: ['leberch', 'starostin'].includes(s.lastBgTrack) ? s.lastBgTrack : 'leberch',
         bgVolume: clamp(parseFloat(s.bgVolume != null ? s.bgVolume : s.soundscapeVolume) || DEFAULTS.bgVolume, 0, 1),
         calmCheck: s.calmCheck !== false,
       };
@@ -359,6 +361,8 @@
     ringFill: document.querySelector('.ring__fill'),
     btnPause: $('btn-pause'),
     btnStop: $('btn-stop'),
+    qcTheme: $('qc-theme'),
+    qcMusic: $('qc-music'),
 
     endTime: $('end-time'),
     endCount: $('end-count'),
@@ -588,6 +592,26 @@
   el.optTheme.addEventListener('click', () => {
     settings.theme = settings.theme === 'light' ? 'dark' : 'light';
     saveSettings(); applyTheme(); renderStart();
+  });
+
+  /* ---------- In-session quick controls (theme + ambient music) ---------- */
+  function updateQcMusic() {
+    el.qcMusic.setAttribute('aria-pressed', settings.bgTrack !== 'off' ? 'true' : 'false');
+  }
+  el.qcTheme.addEventListener('click', () => {
+    settings.theme = settings.theme === 'light' ? 'dark' : 'light';
+    saveSettings(); applyTheme();
+  });
+  el.qcMusic.addEventListener('click', () => {
+    if (settings.bgTrack === 'off') {
+      settings.bgTrack = settings.lastBgTrack || 'leberch';   // resume the remembered track
+    } else {
+      settings.lastBgTrack = settings.bgTrack;                // remember, then silence
+      settings.bgTrack = 'off';
+    }
+    saveSettings();
+    applyTrackChange(settings.bgTrack);
+    updateQcMusic();
   });
 
   /* ---------- Mood picker (full-screen swipe carousel) ---------- */
@@ -875,8 +899,9 @@
 
     // Ambient music is global and already playing across the app — the session
     // doesn't start, stop, or own it. Just make sure it's going (e.g. if the
-    // first gesture was this very tap).
+    // first gesture was this very tap), and reflect it on the quick toggle.
     startMusic();
+    updateQcMusic();
 
     el.btnPause.textContent = 'Pause';
     el.btnPause.setAttribute('aria-label', 'Pause session');
@@ -1466,6 +1491,20 @@
     selectGoalChips(profile.goals);
     updateGoalSuggestion();
   }
+
+  // The same form serves two contexts: FIRST-RUN onboarding ("A little about
+  // you", Continue / Skip for now → home) and EDIT from Settings ("Edit
+  // profile", Save / Cancel → back to Settings).
+  let onboardEdit = false;
+  function openOnboarding(editMode) {
+    onboardEdit = !!editMode;
+    renderOnboarding();
+    el.onboardTitle.textContent = onboardEdit ? 'Edit profile' : 'A little about you';
+    el.btnOnboardContinue.textContent = onboardEdit ? 'Save' : 'Continue';
+    el.btnOnboardSkip.textContent = onboardEdit ? 'Cancel' : 'Skip for now';
+    showScreen('onboarding');
+  }
+
   function finishOnboarding(skip) {
     if (!skip) {
       profile.name = (el.onboardName.value || '').trim().slice(0, 40);
@@ -1477,7 +1516,7 @@
     profile.welcomed = true;
     profile.onboarded = true;
     saveProfile();
-    showScreen('start');
+    showScreen(onboardEdit ? 'settings' : 'start');
   }
 
   function armWelcomeChime() {
@@ -2142,7 +2181,7 @@
   });
   // Walkthrough "Continue": go on to wherever we came from.
   el.btnLearnContinue.addEventListener('click', () => {
-    if (learn.returnTo === 'onboarding') { renderOnboarding(); showScreen('onboarding'); }
+    if (learn.returnTo === 'onboarding') openOnboarding(false);
     else showScreen(learn.returnTo || 'start');
   });
   el.onboardForm.addEventListener('submit', (e) => { e.preventDefault(); finishOnboarding(false); });
@@ -2164,7 +2203,7 @@
 
   // ----- Profile & data -----
   el.optCalm.addEventListener('click', () => { settings.calmCheck = !settings.calmCheck; saveSettings(); renderStart(); });
-  el.btnEditProfile.addEventListener('click', () => { renderOnboarding(); showScreen('onboarding'); });
+  el.btnEditProfile.addEventListener('click', () => openOnboarding(true));
   el.btnReplayWelcome.addEventListener('click', () => { armWelcomeChime(); showScreen('welcome'); });
   // "My summary" opens the in-app visual card (not the raw export dialog).
   el.btnExportSummary.addEventListener('click', () => { renderSummaryCard(); showScreen('summary'); });
@@ -2252,7 +2291,7 @@
   el.onboardTitle.tabIndex = -1; // focusable target for screen switches
   renderStart();
   if (!profile.welcomed) { armWelcomeChime(); showScreen('welcome'); }
-  else if (!profile.onboarded) { renderOnboarding(); showScreen('onboarding'); }
+  else if (!profile.onboarded) { openOnboarding(false); }
   else { showScreen('start'); }
 
   // Register service worker (offline) + reliable, calm updates.

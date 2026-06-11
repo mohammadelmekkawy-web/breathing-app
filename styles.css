@@ -337,10 +337,30 @@ body {
   font: inherit; font-size: 0.72rem; letter-spacing: 0.02em; cursor: pointer;
   border-radius: 0.6rem;
 }
-.tabbar__btn svg { width: 1.5rem; height: 1.5rem; }
-.tabbar__btn.is-active { color: var(--accent); }
+.tabbar__btn svg { width: 1.5rem; height: 1.5rem; transition: filter .25s ease; }
+.tabbar__btn.is-active { color: var(--accent); font-weight: 600; }
+.tabbar__btn.is-active svg { filter: drop-shadow(0 0 7px var(--accent)); }
 /* keep content clear of the bar when it's visible */
 body.tabbed .app { padding-bottom: calc(env(safe-area-inset-bottom) + 5.2rem); }
+
+/* In-session quick controls (theme + music) — small and dim so the orb stays the focus */
+.quick-controls {
+  position: fixed;
+  top: calc(env(safe-area-inset-top) + var(--s2));
+  right: calc(env(safe-area-inset-right) + var(--s2));
+  display: flex; gap: var(--s1); z-index: 20;
+}
+.qc-btn {
+  width: 2.6rem; height: 2.6rem; border-radius: 50%;
+  border: 1px solid var(--line); background: var(--surface);
+  color: var(--text-dim); opacity: 0.78;
+  display: grid; place-items: center; cursor: pointer; padding: 0;
+}
+.qc-btn:hover, .qc-btn:focus-visible { opacity: 1; color: var(--text); }
+.qc-btn svg { width: 1.25rem; height: 1.25rem; }
+.qc-btn .qc-slash { opacity: 0; transition: opacity .2s ease; }
+.qc-btn[aria-pressed="false"] .qc-slash { opacity: 1; }
+.qc-btn[aria-pressed="false"] { opacity: 0.55; }
 
 /* ===================== SETTINGS (tab screen) ===================== */
 .screen--settings { gap: var(--s2); padding-block: var(--s3); }

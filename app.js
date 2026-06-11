@@ -76,6 +76,59 @@
 
   const RING_CIRCUMFERENCE = 2 * Math.PI * 112; // r = 112 in viewBox
 
+  /* =======================================================
+     MOODS — six user-selectable palettes. The CSS variable sets
+     (dark + light per mood) live in styles.css via [data-mood].
+     Here: picker metadata + orb tints. orb2d = [r,g,b] 0-255 for
+     the canvas orb; orb3d = [r,g,b] 0-1 for the WebGL shaders.
+     The gold progress ring is a brand constant in every mood.
+     ======================================================= */
+  const MOODS = {
+    sky: {
+      name: 'Sky', tag: 'light & peaceful', dot: '#7fb6cf',
+      orb2d: { top: [126,186,228], mid: [58,120,168], deep: [28,68,108], bloom: [120,190,235],
+               hi: [178,220,248], rim: [150,200,235], rimGlow: [120,182,226], inner0: [48,70,98], inner1: [16,26,40] },
+      orb3d: { shallow: [0.42,0.68,0.90], deep: [0.07,0.25,0.47], glow: [0.50,0.75,1.0],
+               surfIn: [0.60,0.82,1.0], surfOut: [0.30,0.58,0.86], glass: [0.55,0.78,1.0] },
+    },
+    night: {
+      name: 'Night', tag: 'deep & restful', dot: '#a89ada',
+      orb2d: { top: [168,150,224], mid: [109,91,166], deep: [56,44,100], bloom: [170,150,235],
+               hi: [205,190,245], rim: [175,160,230], rimGlow: [150,135,215], inner0: [58,52,92], inner1: [20,18,40] },
+      orb3d: { shallow: [0.66,0.59,0.88], deep: [0.20,0.15,0.40], glow: [0.70,0.60,1.0],
+               surfIn: [0.80,0.74,0.98], surfOut: [0.48,0.40,0.78], glass: [0.70,0.62,0.98] },
+    },
+    desert: {
+      name: 'Desert', tag: 'warm & grounding', dot: '#d9aa5e',
+      orb2d: { top: [235,190,120], mid: [185,135,70], deep: [110,75,35], bloom: [240,200,130],
+               hi: [248,220,170], rim: [230,195,140], rimGlow: [220,180,120], inner0: [90,70,45], inner1: [38,28,16] },
+      orb3d: { shallow: [0.92,0.74,0.46], deep: [0.42,0.28,0.12], glow: [1.0,0.82,0.50],
+               surfIn: [0.97,0.86,0.62], surfOut: [0.74,0.55,0.30], glass: [0.95,0.80,0.55] },
+    },
+    forest: {
+      name: 'Forest', tag: 'natural & healing', dot: '#8fbf9f',
+      orb2d: { top: [140,200,160], mid: [80,140,105], deep: [35,85,60], bloom: [140,210,170],
+               hi: [185,230,200], rim: [150,210,175], rimGlow: [120,190,150], inner0: [50,80,62], inner1: [16,34,24] },
+      orb3d: { shallow: [0.55,0.78,0.62], deep: [0.12,0.33,0.22], glow: [0.55,0.85,0.65],
+               surfIn: [0.74,0.92,0.79], surfOut: [0.34,0.60,0.44], glass: [0.60,0.85,0.68] },
+    },
+    ocean: {
+      name: 'Ocean', tag: 'fluid & releasing', dot: '#5bc0be',
+      orb2d: { top: [110,205,200], mid: [55,150,148], deep: [22,90,92], bloom: [120,215,210],
+               hi: [175,235,232], rim: [140,215,210], rimGlow: [105,195,190], inner0: [42,82,84], inner1: [12,32,34] },
+      orb3d: { shallow: [0.43,0.80,0.78], deep: [0.08,0.34,0.35], glow: [0.45,0.85,0.83],
+               surfIn: [0.70,0.93,0.91], surfOut: [0.24,0.60,0.59], glass: [0.50,0.85,0.82] },
+    },
+    zen: {
+      name: 'Zen', tag: 'clean & focused', dot: '#9aa7b2',
+      orb2d: { top: [165,190,210], mid: [105,130,152], deep: [55,75,95], bloom: [160,190,215],
+               hi: [200,220,235], rim: [170,195,215], rimGlow: [140,170,195], inner0: [62,72,84], inner1: [22,26,32] },
+      orb3d: { shallow: [0.65,0.74,0.82], deep: [0.21,0.29,0.37], glow: [0.62,0.74,0.85],
+               surfIn: [0.79,0.86,0.92], surfOut: [0.42,0.52,0.61], glass: [0.66,0.76,0.86] },
+    },
+  };
+  const moodOf = (id) => MOODS[id] || MOODS.sky;
+
   /* ---------- Settings (persisted) ---------- */
   const DEFAULTS = {
     mode: 'box',
@@ -84,6 +137,7 @@
     sound: true,
     haptic: true,
     theme: 'dark',      // 'dark' | 'light'
+    mood: 'sky',        // mood palette: sky | night | desert | forest | ocean | zen
     animationStyle: 'liquid3d',  // always the 3D orb (2D is only an internal fallback)
     bgTrack: 'leberch', // ambient music (on by default): 'off' | 'leberch' | 'starostin'
     bgVolume: 0.5,      // background music volume (0..1)
@@ -104,6 +158,7 @@
         sound: s.sound !== false,
         haptic: s.haptic !== false,
         theme: s.theme === 'light' ? 'light' : 'dark',
+        mood: MOODS[s.mood] ? s.mood : 'sky',
         animationStyle: 'liquid3d', // always 3D now (render() falls back to 2D only for reduced-motion / no-WebGL)
         bgTrack: ['off', 'leberch', 'starostin'].includes(s.bgTrack) ? s.bgTrack : 'off',
         bgVolume: clamp(parseFloat(s.bgVolume != null ? s.bgVolume : s.soundscapeVolume) || DEFAULTS.bgVolume, 0, 1),
@@ -281,6 +336,7 @@
     optTheme: $('opt-theme'),
     bgSelect: $('bg-select'),
     bgVolume: $('bg-volume'),
+    moodSelect: $('mood-select'),
 
     // Global settings gear (every screen)
     btnGear: $('btn-gear'),
@@ -405,9 +461,17 @@
   const prefersReducedMotion = () =>
     window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-  /* ---------- Theme ---------- */
+  /* ---------- Theme (mood palette + light/dark variant) ---------- */
   function applyTheme() {
     document.documentElement.setAttribute('data-theme', settings.theme);
+    document.documentElement.setAttribute('data-mood', settings.mood);
+    // Tint the 3D orb if it's loaded (it also gets tinted right after lazy load).
+    if (orb3dApi && orb3dApi.setTint) { try { orb3dApi.setTint(moodOf(settings.mood).orb3d); } catch {} }
+    // Keep the browser/PWA chrome color in step with the mood background.
+    try {
+      const bg = getComputedStyle(document.documentElement).getPropertyValue('--bg').trim();
+      if (bg) document.querySelectorAll('meta[name="theme-color"]').forEach((m) => m.setAttribute('content', bg));
+    } catch {}
   }
 
   /* =======================================================
@@ -452,6 +516,11 @@
     setSwitch(el.optHaptic, settings.haptic);
     setSwitch(el.optCalm, settings.calmCheck);
     setSwitch(el.optTheme, settings.theme === 'light');
+
+    // Mood palette (lives in the global gear)
+    el.moodSelect.querySelectorAll('.mood-chip').forEach((b) => {
+      b.setAttribute('aria-checked', b.getAttribute('data-mood') === settings.mood ? 'true' : 'false');
+    });
 
     // Ambient music: selection + volume (lives in the global gear)
     el.bgSelect.querySelectorAll('.segmented__btn').forEach((b) => {
@@ -520,6 +589,16 @@
   el.optTheme.addEventListener('click', () => {
     settings.theme = settings.theme === 'light' ? 'dark' : 'light';
     saveSettings(); applyTheme(); renderStart();
+  });
+
+  // Mood picker: retheme the whole app (CSS variables + both orbs) instantly.
+  el.moodSelect.querySelectorAll('.mood-chip').forEach((chip) => {
+    chip.addEventListener('click', () => {
+      const mood = chip.getAttribute('data-mood');
+      if (!MOODS[mood] || mood === settings.mood) return;
+      settings.mood = mood;
+      saveSettings(); applyTheme(); renderStart();
+    });
   });
 
   /* =======================================================
@@ -889,7 +968,11 @@
     orb3dState = 'loading';
     import('./orb3d.js')
       .then((mod) => {
-        try { mod.init(el.orb3dCanvas); orb3dApi = mod; orb3dState = 'ready'; }
+        try {
+          mod.init(el.orb3dCanvas);
+          if (mod.setTint) mod.setTint(moodOf(settings.mood).orb3d); // current mood from the start
+          orb3dApi = mod; orb3dState = 'ready';
+        }
         catch (e) { orb3dState = 'failed'; }
       })
       .catch(() => { orb3dState = 'failed'; });
@@ -934,8 +1017,12 @@
     return true;
   }
 
+  // rgba() string from a mood tint triple
+  const rgbaOf = (t, a) => 'rgba(' + t[0] + ',' + t[1] + ',' + t[2] + ',' + a + ')';
+
   function drawOrb(fill, timeMs, inst) {
     inst = inst || orb;
+    const T = moodOf(settings.mood).orb2d; // current mood tint
     const c = inst.canvas, ctx = inst.ctx;
     const cssW = c.clientWidth, cssH = c.clientHeight;
     if (!cssW || !cssH) return;
@@ -974,8 +1061,8 @@
 
     // Faint empty interior so the sphere reads even when empty.
     const bg = ctx.createRadialGradient(cx, cy - R * 0.25, R * 0.15, cx, cy, R);
-    bg.addColorStop(0, 'rgba(48,70,98,0.55)');   // more present so the empty vessel
-    bg.addColorStop(1, 'rgba(16,26,40,0.78)');   // reads full-size up to the ring (no gap)
+    bg.addColorStop(0, rgbaOf(T.inner0, 0.55));  // more present so the empty vessel
+    bg.addColorStop(1, rgbaOf(T.inner1, 0.78));  // reads full-size up to the ring (no gap)
     ctx.fillStyle = bg; ctx.fillRect(cx - R, cy - R, 2 * R, 2 * R);
 
     if (fill > 0.005) {
@@ -991,9 +1078,9 @@
       ctx.lineTo(cx + R, cy + R + 2);
       ctx.closePath();
       const lg = ctx.createLinearGradient(0, surfaceY - R * 0.25, 0, cy + R);
-      lg.addColorStop(0, 'rgba(126,186,228,0.95)');  // brighter near surface (inner glow)
-      lg.addColorStop(0.5, 'rgba(58,120,168,0.96)');
-      lg.addColorStop(1, 'rgba(28,68,108,0.97)');     // deeper at the bottom
+      lg.addColorStop(0, rgbaOf(T.top, 0.95));   // brighter near surface (inner glow)
+      lg.addColorStop(0.5, rgbaOf(T.mid, 0.96));
+      lg.addColorStop(1, rgbaOf(T.deep, 0.97));  // deeper at the bottom
       ctx.fillStyle = lg; ctx.fill();
 
       // Soft inner luminosity (subtle bloom), and a gentle surface highlight.
@@ -1001,8 +1088,8 @@
         ctx.globalCompositeOperation = 'lighter';
         const gy = Math.max(surfaceY, cy) + R * 0.1;
         const gr = ctx.createRadialGradient(cx, gy, R * 0.04, cx, gy, R * 0.95);
-        gr.addColorStop(0, 'rgba(120,190,235,0.16)');
-        gr.addColorStop(1, 'rgba(120,190,235,0)');
+        gr.addColorStop(0, rgbaOf(T.bloom, 0.16));
+        gr.addColorStop(1, rgbaOf(T.bloom, 0));
         ctx.fillStyle = gr; ctx.fillRect(cx - R, cy - R, 2 * R, 2 * R);
 
         if (fill < 0.99) {
@@ -1011,7 +1098,7 @@
             const x = cx - R + (2 * R) * (i / steps);
             if (i === 0) ctx.moveTo(x, waveAt(x)); else ctx.lineTo(x, waveAt(x));
           }
-          ctx.strokeStyle = 'rgba(178,220,248,0.45)';
+          ctx.strokeStyle = rgbaOf(T.hi, 0.45);
           ctx.lineWidth = Math.max(1, dpr);
           ctx.stroke();
         }
@@ -1045,9 +1132,9 @@
     // Subtle sphere edge — the gold progress ring (drawn over this) is the
     // prominent boundary now, so keep the orb's own rim very gentle.
     ctx.beginPath(); ctx.arc(cx, cy, R, 0, Math.PI * 2);
-    ctx.strokeStyle = 'rgba(150,200,235,0.30)';
+    ctx.strokeStyle = rgbaOf(T.rim, 0.30);
     ctx.lineWidth = Math.max(1, dpr);
-    if (!reduced) { ctx.shadowColor = 'rgba(120,182,226,0.4)'; ctx.shadowBlur = dpr * 6; }
+    if (!reduced) { ctx.shadowColor = rgbaOf(T.rimGlow, 0.4); ctx.shadowBlur = dpr * 6; }
     ctx.stroke();
     ctx.restore();
 

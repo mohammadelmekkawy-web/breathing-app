@@ -28,7 +28,27 @@ const shared = {
   uFill: { value: 0 },
   uRadius: { value: R },
   uPx: { value: 1 },
+  // Mood tint (defaults = Sky blue). app.js calls setTint() when the mood changes.
+  uColShallow: { value: new THREE.Vector3(0.42, 0.68, 0.90) }, // liquid near the surface
+  uColDeep:    { value: new THREE.Vector3(0.07, 0.25, 0.47) }, // liquid at the bottom
+  uColGlow:    { value: new THREE.Vector3(0.50, 0.75, 1.00) }, // inner glow toward viewer
+  uColSurfIn:  { value: new THREE.Vector3(0.60, 0.82, 1.00) }, // waterline ellipse centre
+  uColSurfOut: { value: new THREE.Vector3(0.30, 0.58, 0.86) }, // waterline ellipse edge
+  uColGlass:   { value: new THREE.Vector3(0.55, 0.78, 1.00) }, // fresnel shell rim
 };
+
+// Re-tint every material for the current mood. Safe to call any time (before
+// or after init) — the uniform objects exist from module load.
+export function setTint(t) {
+  try {
+    if (t.shallow) shared.uColShallow.value.fromArray(t.shallow);
+    if (t.deep)    shared.uColDeep.value.fromArray(t.deep);
+    if (t.glow)    shared.uColGlow.value.fromArray(t.glow);
+    if (t.surfIn)  shared.uColSurfIn.value.fromArray(t.surfIn);
+    if (t.surfOut) shared.uColSurfOut.value.fromArray(t.surfOut);
+    if (t.glass)   shared.uColGlass.value.fromArray(t.glass);
+  } catch (e) {}
+}
 
 export function init(cnv) {
   canvas = cnv;
@@ -49,7 +69,10 @@ export function init(cnv) {
 
   // ---------- Liquid ----------
   const liquidMat = new THREE.ShaderMaterial({
-    uniforms: { uTime: shared.uTime, uFill: shared.uFill, uRadius: shared.uRadius },
+    uniforms: {
+      uTime: shared.uTime, uFill: shared.uFill, uRadius: shared.uRadius,
+      uColShallow: shared.uColShallow, uColDeep: shared.uColDeep, uColGlow: shared.uColGlow,
+    },
     transparent: true, depthWrite: true, side: THREE.DoubleSide,
     vertexShader: [
       'varying vec3 vLocal; varying vec3 vN; varying vec3 vView;',
@@ -63,6 +86,7 @@ export function init(cnv) {
     ].join('\n'),
     fragmentShader: [
       'uniform float uTime, uFill, uRadius;',
+      'uniform vec3 uColShallow, uColDeep, uColGlow;',
       'varying vec3 vLocal; varying vec3 vN; varying vec3 vView;',
       'float waves(vec3 p){',
       '  float t = uTime; float w = 0.0;',
@@ -77,11 +101,11 @@ export function init(cnv) {
       '  float surf = (-uRadius + 2.0*uRadius*uFill) + waves(vLocal);',
       '  if (vLocal.y > surf) discard;',                  // above the wavy waterline → empty
       '  float depthBelow = clamp((surf - vLocal.y)/(2.0*uRadius), 0.0, 1.0);',
-      '  vec3 col = mix(vec3(0.42,0.68,0.90), vec3(0.07,0.25,0.47), depthBelow);',
+      '  vec3 col = mix(uColShallow, uColDeep, depthBelow);',
       '  float sheen = smoothstep(0.10, 0.0, surf - vLocal.y);', // bright band at the surface
       '  col += sheen*0.22;',
       '  float facing = clamp(dot(vN, vView), 0.0, 1.0);',
-      '  col += facing*0.10*vec3(0.5,0.75,1.0);',         // soft inner glow toward the viewer
+      '  col += facing*0.10*uColGlow;',                   // soft inner glow toward the viewer
       '  float spec = pow(max(0.0, dot(normalize(vN), normalize(vec3(0.25,0.7,0.65)))), 12.0);',
       '  col += spec*0.18;',                              // soft glossy highlight → reads as a 3D ball
       '  gl_FragColor = vec4(col, 0.85);',
@@ -97,7 +121,10 @@ export function init(cnv) {
   // clipped to the sphere's cross-section. Seen from the tilted camera it reads
   // as an ellipse — the strongest 3D cue.
   const surfaceMat = new THREE.ShaderMaterial({
-    uniforms: { uTime: shared.uTime, uFill: shared.uFill, uRadius: shared.uRadius },
+    uniforms: {
+      uTime: shared.uTime, uFill: shared.uFill, uRadius: shared.uRadius,
+      uColSurfIn: shared.uColSurfIn, uColSurfOut: shared.uColSurfOut,
+    },
     transparent: true, depthWrite: false, depthTest: true, side: THREE.DoubleSide,
     vertexShader: [
       'uniform float uTime, uFill, uRadius;',
@@ -121,6 +148,7 @@ export function init(cnv) {
     ].join('\n'),
     fragmentShader: [
       'uniform float uFill, uRadius;',
+      'uniform vec3 uColSurfIn, uColSurfOut;',
       'varying vec2 vXZ;',
       'void main(){',
       '  float surf0 = -uRadius + 2.0*uRadius*uFill;',
@@ -128,7 +156,7 @@ export function init(cnv) {
       '  float d2 = dot(vXZ, vXZ);',
       '  if (d2 > rCross2) discard;',
       '  float edge = clamp(d2 / rCross2, 0.0, 1.0);',
-      '  vec3 col = mix(vec3(0.60,0.82,1.0), vec3(0.30,0.58,0.86), edge*0.7);',
+      '  vec3 col = mix(uColSurfIn, uColSurfOut, edge*0.7);',
       '  float rimFade = smoothstep(1.0, 0.82, edge);',    // soft meeting with the wall
       '  gl_FragColor = vec4(col, 0.9*rimFade);',
       '}'
@@ -140,6 +168,7 @@ export function init(cnv) {
 
   // ---------- Glass shell (faint fresnel rim) ----------
   const glassMat = new THREE.ShaderMaterial({
+    uniforms: { uColGlass: shared.uColGlass },
     transparent: true, depthWrite: false, side: THREE.FrontSide, blending: THREE.AdditiveBlending,
     vertexShader: [
       'varying vec3 vN; varying vec3 vView;',
@@ -151,10 +180,11 @@ export function init(cnv) {
       '}'
     ].join('\n'),
     fragmentShader: [
+      'uniform vec3 uColGlass;',
       'varying vec3 vN; varying vec3 vView;',
       'void main(){',
       '  float fres = pow(1.0 - clamp(dot(vN,vView),0.0,1.0), 3.0);',
-      '  gl_FragColor = vec4(vec3(0.55,0.78,1.0)*fres*0.6, fres*0.5);',
+      '  gl_FragColor = vec4(uColGlass*fres*0.6, fres*0.5);',
       '}'
     ].join('\n'),
   });

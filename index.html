@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en" data-theme="dark">
+<html lang="en" data-theme="dark" data-mood="sky">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
@@ -466,6 +466,17 @@
       <div class="overlay__card overlay__card--settings">
         <h2 class="overlay__title" id="settings-title">Settings</h2>
         <div class="settings-list">
+          <div class="opt-block">
+            <span class="toggle__label" id="lbl-mood">Mood</span>
+            <div class="mood-grid" role="radiogroup" aria-labelledby="lbl-mood" id="mood-select">
+              <button type="button" class="mood-chip" role="radio" aria-checked="true"  data-mood="sky"    style="--dot:#7fb6cf"><span class="mood-chip__dot"></span><span class="mood-chip__name">Sky</span><span class="mood-chip__tag">light &amp; peaceful</span></button>
+              <button type="button" class="mood-chip" role="radio" aria-checked="false" data-mood="night"  style="--dot:#a89ada"><span class="mood-chip__dot"></span><span class="mood-chip__name">Night</span><span class="mood-chip__tag">deep &amp; restful</span></button>
+              <button type="button" class="mood-chip" role="radio" aria-checked="false" data-mood="desert" style="--dot:#d9aa5e"><span class="mood-chip__dot"></span><span class="mood-chip__name">Desert</span><span class="mood-chip__tag">warm &amp; grounding</span></button>
+              <button type="button" class="mood-chip" role="radio" aria-checked="false" data-mood="forest" style="--dot:#8fbf9f"><span class="mood-chip__dot"></span><span class="mood-chip__name">Forest</span><span class="mood-chip__tag">natural &amp; healing</span></button>
+              <button type="button" class="mood-chip" role="radio" aria-checked="false" data-mood="ocean"  style="--dot:#5bc0be"><span class="mood-chip__dot"></span><span class="mood-chip__name">Ocean</span><span class="mood-chip__tag">fluid &amp; releasing</span></button>
+              <button type="button" class="mood-chip" role="radio" aria-checked="false" data-mood="zen"    style="--dot:#9aa7b2"><span class="mood-chip__dot"></span><span class="mood-chip__name">Zen</span><span class="mood-chip__tag">clean &amp; focused</span></button>
+            </div>
+          </div>
           <div class="toggle">
             <span class="toggle__label" id="lbl-sound">Cue tones</span>
             <button type="button" class="switch" id="opt-sound" role="switch" aria-checked="true" aria-labelledby="lbl-sound"><span class="switch__dot"></span></button>

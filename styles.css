@@ -58,6 +58,166 @@
   --shadow:    rgba(40,60,75,0.18);
 }
 
+/* =========================================================
+   MOODS — six user-selectable palettes, each with a dark and
+   light variant. "Sky" is the default = the base tokens above
+   (no override block), so existing users see no change.
+   The gold progress ring (--ring-fill/--ring-track) is the
+   brand constant: identical in every mood.
+   Order matters: mood blocks come AFTER the base light block;
+   the two-attribute light variants win over everything.
+   ========================================================= */
+
+/* ---- Night — deep & restful (navy + violet) ---- */
+[data-mood="night"] {
+  --bg:        #0c1020;
+  --bg-grad:   #141b36;
+  --surface:   #161c33;
+  --surface-2: #1f2742;
+  --text:      #ecedf8;
+  --text-dim:  #b0b6d4;
+  --line:      #3a4366;
+  --accent:    #a89ada;
+  --accent-2:  #8d7cc4;
+  --primary:   #a89ada;
+  --primary-ink:#120c2c;
+  --shadow:    rgba(0,0,10,0.5);
+}
+[data-mood="night"][data-theme="light"] {
+  --bg:        #eef0f8;
+  --bg-grad:   #e2e5f3;
+  --surface:   #ffffff;
+  --surface-2: #f0f1fa;
+  --text:      #1d2138;
+  --text-dim:  #545a7c;
+  --line:      #c9cde4;
+  --accent:    #6d5ba6;
+  --accent-2:  #5f4f95;
+  --primary:   #645399;
+  --primary-ink:#ffffff;
+  --shadow:    rgba(48,52,90,0.18);
+}
+
+/* ---- Desert — warm & grounding (sand + gold) ---- */
+[data-mood="desert"] {
+  --bg:        #1b1410;
+  --bg-grad:   #2a2014;
+  --surface:   #2a211a;
+  --surface-2: #372c21;
+  --text:      #f6efe4;
+  --text-dim:  #cdbfa9;
+  --line:      #564a3a;
+  --accent:    #d9aa5e;
+  --accent-2:  #bb8f4a;
+  --primary:   #d9aa5e;
+  --primary-ink:#241505;
+  --shadow:    rgba(10,5,0,0.5);
+}
+[data-mood="desert"][data-theme="light"] {
+  --bg:        #f6eedd;
+  --bg-grad:   #efe2c8;
+  --surface:   #fffaf0;
+  --surface-2: #f3e9d5;
+  --text:      #3a2d1c;
+  --text-dim:  #6e5c41;
+  --line:      #d6c5a3;
+  --accent:    #94691c;
+  --accent-2:  #7f5a16;
+  --primary:   #8a6420;
+  --primary-ink:#ffffff;
+  --shadow:    rgba(80,60,30,0.18);
+}
+
+/* ---- Forest — natural & healing (sage + green) ---- */
+[data-mood="forest"] {
+  --bg:        #101a14;
+  --bg-grad:   #17271d;
+  --surface:   #1a2a20;
+  --surface-2: #24382b;
+  --text:      #eaf4ec;
+  --text-dim:  #b0c9b8;
+  --line:      #3d5546;
+  --accent:    #8fbf9f;
+  --accent-2:  #6fa482;
+  --primary:   #8fbf9f;
+  --primary-ink:#081710;
+  --shadow:    rgba(0,8,3,0.5);
+}
+[data-mood="forest"][data-theme="light"] {
+  --bg:        #eef4ea;
+  --bg-grad:   #e0ecda;
+  --surface:   #ffffff;
+  --surface-2: #eff5ec;
+  --text:      #1c2b20;
+  --text-dim:  #4c6353;
+  --line:      #c3d4c0;
+  --accent:    #3f6b4f;
+  --accent-2:  #355c44;
+  --primary:   #3a6a4d;
+  --primary-ink:#ffffff;
+  --shadow:    rgba(40,70,50,0.18);
+}
+
+/* ---- Ocean — fluid & releasing (teal, distinctly not sky-blue) ---- */
+[data-mood="ocean"] {
+  --bg:        #0a1a1d;
+  --bg-grad:   #102b30;
+  --surface:   #14282c;
+  --surface-2: #1d373c;
+  --text:      #e8f5f5;
+  --text-dim:  #a9caca;
+  --line:      #355457;
+  --accent:    #5bc0be;
+  --accent-2:  #47a3a1;
+  --primary:   #5bc0be;
+  --primary-ink:#04201f;
+  --shadow:    rgba(0,8,8,0.5);
+}
+[data-mood="ocean"][data-theme="light"] {
+  --bg:        #e9f4f4;
+  --bg-grad:   #daeceb;
+  --surface:   #ffffff;
+  --surface-2: #ecf5f5;
+  --text:      #15302f;
+  --text-dim:  #44615f;
+  --line:      #bcd6d6;
+  --accent:    #1f7a78;
+  --accent-2:  #1a6b69;
+  --primary:   #1f7a78;
+  --primary-ink:#ffffff;
+  --shadow:    rgba(30,70,70,0.18);
+}
+
+/* ---- Zen — clean & focused (neutral + one restrained accent) ---- */
+[data-mood="zen"] {
+  --bg:        #161616;
+  --bg-grad:   #202020;
+  --surface:   #202020;
+  --surface-2: #2a2a2a;
+  --text:      #f0f0f0;
+  --text-dim:  #b6b6b6;
+  --line:      #424242;
+  --accent:    #8db7d9;
+  --accent-2:  #769fc2;
+  --primary:   #8db7d9;
+  --primary-ink:#0c161e;
+  --shadow:    rgba(0,0,0,0.5);
+}
+[data-mood="zen"][data-theme="light"] {
+  --bg:        #f7f7f7;
+  --bg-grad:   #ececec;
+  --surface:   #ffffff;
+  --surface-2: #f2f2f2;
+  --text:      #222222;
+  --text-dim:  #585858;
+  --line:      #d4d4d4;
+  --accent:    #44749d;
+  --accent-2:  #3a6489;
+  --primary:   #44749d;
+  --primary-ink:#ffffff;
+  --shadow:    rgba(0,0,0,0.14);
+}
+
 * { box-sizing: border-box; }
 
 /* The [hidden] attribute must always win over layout display rules. */
@@ -179,6 +339,24 @@ body {
 .overlay__card--settings { max-width: 24rem; text-align: left; max-height: 85vh; overflow-y: auto; }
 .settings-list { display: flex; flex-direction: column; margin: var(--s2) 0 var(--s3); }
 .settings-list .toggle:first-child, .settings-list .opt-block:first-child { border-top: 0; }
+
+/* Mood picker — 6 swatch chips (2 columns), each tinted by its --dot color */
+.mood-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: var(--s1); }
+.mood-chip {
+  display: flex; flex-direction: column; align-items: center; gap: 2px;
+  padding: 10px 6px; min-height: var(--tap);
+  border-radius: 0.75rem; border: 1px solid var(--line);
+  background: var(--surface-2); color: var(--text);
+  font: inherit; font-size: 0.95rem; cursor: pointer;
+  transition: border-color .2s ease, box-shadow .2s ease;
+}
+.mood-chip__dot { width: 1.2rem; height: 1.2rem; border-radius: 50%; background: var(--dot); box-shadow: 0 0 9px var(--dot); }
+.mood-chip__name { font-weight: 600; }
+.mood-chip__tag { font-size: 0.74rem; color: var(--text-dim); }
+.mood-chip[aria-checked="true"] {
+  border-color: var(--dot);
+  box-shadow: inset 0 0 0 1px var(--dot), 0 0 10px -2px var(--dot);
+}
 
 /* Compact inline 2-option segmented (e.g. in-session 2D | 3D) */
 .segmented--mini { display: inline-grid; grid-template-columns: auto auto; width: auto; padding: 3px; gap: 3px; }

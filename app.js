@@ -2152,7 +2152,12 @@
     renderStart();                 // reflect current settings into the shared controls
     el.settingsOverlay.hidden = false;
     el.btnGear.setAttribute('aria-expanded', 'true');
-    el.btnSettingsDone.focus();
+    // Open at the TOP (Moods first). Focusing the bottom Done button used to
+    // auto-scroll the panel down — focus the heading instead, without scrolling.
+    const card = el.settingsOverlay.querySelector('.overlay__card');
+    if (card) card.scrollTop = 0;
+    const title = $('settings-title');
+    if (title) { title.setAttribute('tabindex', '-1'); title.focus({ preventScroll: true }); }
   }
   function closeGear() {
     el.settingsOverlay.hidden = true;

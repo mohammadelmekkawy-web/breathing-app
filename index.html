@@ -162,7 +162,6 @@
         <h1 id="start-title" class="masthead__title">Breathe</h1>
         <p class="masthead__sub" id="masthead-sub">A quiet moment for your breath.</p>
         <p class="greeting" id="greeting" hidden></p>
-        <button type="button" class="btn btn--ghost btn--how" id="btn-how-it-works">🌬️ New to breathing? See how it works</button>
       </header>
 
       <form id="start-form" class="settings" novalidate>
@@ -242,19 +241,7 @@
           <p class="field__note">~6 breaths per minute · a good place to start</p>
         </div>
 
-        <!-- Settings now live in the global ⚙️ gear (top-right, every screen). -->
-
-        <!-- Profile & data: personalization, export, intro replay (all local) -->
-        <details class="options">
-          <summary class="options__summary">Profile &amp; data</summary>
-          <div class="options__body options__body--stack">
-            <p class="data-note">🔒 Everything stays on this device — your practice history is never uploaded.</p>
-            <button type="button" class="btn btn--ghost btn--row" id="btn-edit-profile">Edit profile</button>
-            <button type="button" class="btn btn--ghost btn--row" id="btn-export-summary">My summary (readable)</button>
-            <button type="button" class="btn btn--ghost btn--row" id="btn-export-csv">Export data (CSV)</button>
-            <button type="button" class="btn btn--ghost btn--row" id="btn-replay-welcome">Replay intro</button>
-          </div>
-        </details>
+        <!-- Settings, profile & data live in the Settings tab. -->
 
         <!-- Primary action (Fitts's Law: large, central) -->
         <button type="submit" class="btn btn--primary" id="btn-start">Start</button>
@@ -454,61 +441,135 @@
       </div>
     </div>
 
-    <!-- ===================== GLOBAL SETTINGS (gear — every screen) ===================== -->
-    <button type="button" class="gearbtn" id="btn-gear" aria-label="Settings" aria-haspopup="dialog" aria-expanded="false">
-      <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <circle cx="12" cy="12" r="3.1" />
-        <path d="M19.4 13a7.8 7.8 0 0 0 0-2l1.9-1.5-1.9-3.3-2.3 1a7.7 7.7 0 0 0-1.7-1l-.4-2.4h-3.8l-.4 2.4a7.7 7.7 0 0 0-1.7 1l-2.3-1L2.7 9.5 4.6 11a7.8 7.8 0 0 0 0 2l-1.9 1.5 1.9 3.3 2.3-1a7.7 7.7 0 0 0 1.7 1l.4 2.4h3.8l.4-2.4a7.7 7.7 0 0 0 1.7-1l2.3 1 1.9-3.3z" />
-      </svg>
-    </button>
-
-    <div id="settings-overlay" class="overlay" role="dialog" aria-modal="true" aria-labelledby="settings-title" hidden>
-      <div class="overlay__card overlay__card--settings">
-        <h2 class="overlay__title" id="settings-title">Settings</h2>
-        <div class="settings-list">
-          <div class="opt-block">
-            <span class="toggle__label" id="lbl-mood">Mood</span>
-            <div class="mood-grid" role="radiogroup" aria-labelledby="lbl-mood" id="mood-select">
-              <button type="button" class="mood-chip" role="radio" aria-checked="true"  data-mood="sky"    style="--dot:#7fb6cf"><span class="mood-chip__dot"></span><span class="mood-chip__name">Sky</span><span class="mood-chip__tag">light &amp; peaceful</span></button>
-              <button type="button" class="mood-chip" role="radio" aria-checked="false" data-mood="night"  style="--dot:#a89ada"><span class="mood-chip__dot"></span><span class="mood-chip__name">Night</span><span class="mood-chip__tag">deep &amp; restful</span></button>
-              <button type="button" class="mood-chip" role="radio" aria-checked="false" data-mood="desert" style="--dot:#d9aa5e"><span class="mood-chip__dot"></span><span class="mood-chip__name">Desert</span><span class="mood-chip__tag">warm &amp; grounding</span></button>
-              <button type="button" class="mood-chip" role="radio" aria-checked="false" data-mood="forest" style="--dot:#8fbf9f"><span class="mood-chip__dot"></span><span class="mood-chip__name">Forest</span><span class="mood-chip__tag">natural &amp; healing</span></button>
-              <button type="button" class="mood-chip" role="radio" aria-checked="false" data-mood="ocean"  style="--dot:#5bc0be"><span class="mood-chip__dot"></span><span class="mood-chip__name">Ocean</span><span class="mood-chip__tag">fluid &amp; releasing</span></button>
-              <button type="button" class="mood-chip" role="radio" aria-checked="false" data-mood="zen"    style="--dot:#9aa7b2"><span class="mood-chip__dot"></span><span class="mood-chip__name">Zen</span><span class="mood-chip__tag">clean &amp; focused</span></button>
-            </div>
-          </div>
-          <div class="toggle">
-            <span class="toggle__label" id="lbl-sound">Cue tones</span>
-            <button type="button" class="switch" id="opt-sound" role="switch" aria-checked="true" aria-labelledby="lbl-sound"><span class="switch__dot"></span></button>
-          </div>
-          <div class="toggle">
-            <span class="toggle__label" id="lbl-haptic">Vibration</span>
-            <button type="button" class="switch" id="opt-haptic" role="switch" aria-checked="true" aria-labelledby="lbl-haptic"><span class="switch__dot"></span></button>
-          </div>
-          <div class="toggle">
-            <span class="toggle__label" id="lbl-calm">Calm check (before &amp; after)</span>
-            <button type="button" class="switch" id="opt-calm" role="switch" aria-checked="true" aria-labelledby="lbl-calm"><span class="switch__dot"></span></button>
-          </div>
-          <div class="toggle">
-            <span class="toggle__label" id="lbl-theme">Light theme</span>
-            <button type="button" class="switch" id="opt-theme" role="switch" aria-checked="false" aria-labelledby="lbl-theme"><span class="switch__dot"></span></button>
-          </div>
-          <div class="opt-block">
-            <span class="toggle__label" id="lbl-bg">Ambient sound</span>
-            <div class="segmented segmented--col" role="radiogroup" aria-labelledby="lbl-bg" id="bg-select">
-              <button type="button" class="segmented__btn" role="radio" aria-checked="false" data-track="off">Off</button>
-              <button type="button" class="segmented__btn" role="radio" aria-checked="true" data-track="leberch">Meditation — Leberch</button>
-              <button type="button" class="segmented__btn" role="radio" aria-checked="false" data-track="starostin">Meditation — Starostin</button>
-            </div>
-          </div>
-          <div class="toggle toggle--slider">
-            <label class="toggle__label" for="bg-volume">Ambient volume</label>
-            <input type="range" class="slider" id="bg-volume" min="0" max="100" step="1" value="50" aria-label="Ambient music volume" />
+    <!-- ===================== SETTINGS (tab) ===================== -->
+    <section id="screen-settings" class="screen screen--settings" aria-labelledby="settings-title" hidden>
+      <header class="masthead">
+        <h1 id="settings-title" class="masthead__title">Settings</h1>
+      </header>
+      <div class="settings-list">
+        <button type="button" class="toggle toggle--nav" id="mood-row" aria-haspopup="true">
+          <span class="toggle__label">Mood</span>
+          <span class="toggle__value"><span id="mood-value">Sky</span> ›</span>
+        </button>
+        <div class="toggle">
+          <span class="toggle__label" id="lbl-theme">Light theme</span>
+          <button type="button" class="switch" id="opt-theme" role="switch" aria-checked="false" aria-labelledby="lbl-theme"><span class="switch__dot"></span></button>
+        </div>
+        <div class="toggle">
+          <span class="toggle__label" id="lbl-sound">Cue tones</span>
+          <button type="button" class="switch" id="opt-sound" role="switch" aria-checked="true" aria-labelledby="lbl-sound"><span class="switch__dot"></span></button>
+        </div>
+        <div class="toggle">
+          <span class="toggle__label" id="lbl-haptic">Vibration</span>
+          <button type="button" class="switch" id="opt-haptic" role="switch" aria-checked="true" aria-labelledby="lbl-haptic"><span class="switch__dot"></span></button>
+        </div>
+        <div class="toggle">
+          <span class="toggle__label" id="lbl-calm">Calm check (before &amp; after)</span>
+          <button type="button" class="switch" id="opt-calm" role="switch" aria-checked="true" aria-labelledby="lbl-calm"><span class="switch__dot"></span></button>
+        </div>
+        <div class="opt-block">
+          <span class="toggle__label" id="lbl-bg">Ambient sound</span>
+          <div class="segmented segmented--col" role="radiogroup" aria-labelledby="lbl-bg" id="bg-select">
+            <button type="button" class="segmented__btn" role="radio" aria-checked="false" data-track="off">Off</button>
+            <button type="button" class="segmented__btn" role="radio" aria-checked="true" data-track="leberch">Meditation — Leberch</button>
+            <button type="button" class="segmented__btn" role="radio" aria-checked="false" data-track="starostin">Meditation — Starostin</button>
           </div>
         </div>
-        <button type="button" class="btn btn--primary" id="btn-settings-done">Done</button>
+        <div class="toggle toggle--slider">
+          <label class="toggle__label" for="bg-volume">Ambient volume</label>
+          <input type="range" class="slider" id="bg-volume" min="0" max="100" step="1" value="50" aria-label="Ambient music volume" />
+        </div>
+        <div class="opt-block">
+          <span class="toggle__label">Profile &amp; data</span>
+          <p class="data-note">🔒 Everything stays on this device — your practice history is never uploaded.</p>
+          <button type="button" class="btn btn--ghost btn--row" id="btn-edit-profile">Edit profile</button>
+          <button type="button" class="btn btn--ghost btn--row" id="btn-export-summary">My summary (readable)</button>
+          <button type="button" class="btn btn--ghost btn--row" id="btn-export-csv">Export data (CSV)</button>
+          <button type="button" class="btn btn--ghost btn--row" id="btn-replay-welcome">Replay intro</button>
+        </div>
       </div>
-    </div>
+    </section>
+
+    <!-- ===================== MOOD PICKER (full-screen swipe) ===================== -->
+    <section id="screen-mood" class="screen--mood" aria-labelledby="mood-title" hidden>
+      <header class="mood-head">
+        <button type="button" class="mood-back" id="btn-mood-back" aria-label="Back to settings">‹</button>
+        <h1 class="mood-head__title" id="mood-title">Mood</h1>
+      </header>
+      <div class="mood-carousel" id="mood-carousel">
+        <article class="mood-slide" data-mood="sky" style="--dot:#7fb6cf; background: radial-gradient(120% 70% at 50% 18%, rgba(127,182,207,0.38), transparent 62%), linear-gradient(180deg, #122031, #0e1620);">
+          <span class="mood-slide__orb"></span>
+          <div class="mood-slide__card">
+            <h2 class="mood-slide__name">Sky</h2>
+            <p class="mood-slide__tag">light &amp; peaceful</p>
+            <button type="button" class="btn btn--primary mood-slide__select" data-mood="sky">Select</button>
+          </div>
+        </article>
+        <article class="mood-slide" data-mood="night" style="--dot:#a89ada; background: radial-gradient(120% 70% at 50% 18%, rgba(168,154,218,0.38), transparent 62%), linear-gradient(180deg, #141b36, #0c1020);">
+          <span class="mood-slide__orb"></span>
+          <div class="mood-slide__card">
+            <h2 class="mood-slide__name">Night</h2>
+            <p class="mood-slide__tag">deep &amp; restful</p>
+            <button type="button" class="btn btn--primary mood-slide__select" data-mood="night">Select</button>
+          </div>
+        </article>
+        <article class="mood-slide" data-mood="desert" style="--dot:#d9aa5e; background: radial-gradient(120% 70% at 50% 18%, rgba(217,170,94,0.38), transparent 62%), linear-gradient(180deg, #2a2014, #1b1410);">
+          <span class="mood-slide__orb"></span>
+          <div class="mood-slide__card">
+            <h2 class="mood-slide__name">Desert</h2>
+            <p class="mood-slide__tag">warm &amp; grounding</p>
+            <button type="button" class="btn btn--primary mood-slide__select" data-mood="desert">Select</button>
+          </div>
+        </article>
+        <article class="mood-slide" data-mood="forest" style="--dot:#8fbf9f; background: radial-gradient(120% 70% at 50% 18%, rgba(143,191,159,0.38), transparent 62%), linear-gradient(180deg, #17271d, #101a14);">
+          <span class="mood-slide__orb"></span>
+          <div class="mood-slide__card">
+            <h2 class="mood-slide__name">Forest</h2>
+            <p class="mood-slide__tag">natural &amp; healing</p>
+            <button type="button" class="btn btn--primary mood-slide__select" data-mood="forest">Select</button>
+          </div>
+        </article>
+        <article class="mood-slide" data-mood="ocean" style="--dot:#5bc0be; background: radial-gradient(120% 70% at 50% 18%, rgba(91,192,190,0.38), transparent 62%), linear-gradient(180deg, #102b30, #0a1a1d);">
+          <span class="mood-slide__orb"></span>
+          <div class="mood-slide__card">
+            <h2 class="mood-slide__name">Ocean</h2>
+            <p class="mood-slide__tag">fluid &amp; releasing</p>
+            <button type="button" class="btn btn--primary mood-slide__select" data-mood="ocean">Select</button>
+          </div>
+        </article>
+        <article class="mood-slide" data-mood="zen" style="--dot:#9aa7b2; background: radial-gradient(120% 70% at 50% 18%, rgba(154,167,178,0.34), transparent 62%), linear-gradient(180deg, #202020, #161616);">
+          <span class="mood-slide__orb"></span>
+          <div class="mood-slide__card">
+            <h2 class="mood-slide__name">Zen</h2>
+            <p class="mood-slide__tag">clean &amp; focused</p>
+            <button type="button" class="btn btn--primary mood-slide__select" data-mood="zen">Select</button>
+          </div>
+        </article>
+      </div>
+      <div class="mood-dots" id="mood-dots" aria-hidden="true">
+        <span class="is-on"></span><span></span><span></span><span></span><span></span><span></span>
+      </div>
+    </section>
+
+    <!-- ===================== BOTTOM TAB BAR ===================== -->
+    <nav class="tabbar" id="tabbar" aria-label="Main navigation" hidden>
+      <button type="button" class="tabbar__btn is-active" id="tab-breathe" data-tab="breathe">
+        <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="14.5" r="3.5"/></svg>
+        <span>Breathe</span>
+      </button>
+      <button type="button" class="tabbar__btn" id="tab-learn" data-tab="learn">
+        <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
+        <span>Learn</span>
+      </button>
+      <button type="button" class="tabbar__btn" id="tab-progress" data-tab="progress">
+        <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 20V10"/><path d="M12 20V4"/><path d="M6 20v-6"/></svg>
+        <span>Progress</span>
+      </button>
+      <button type="button" class="tabbar__btn" id="tab-settings" data-tab="settings">
+        <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3.1"/><path d="M19.4 13a7.8 7.8 0 0 0 0-2l1.9-1.5-1.9-3.3-2.3 1a7.7 7.7 0 0 0-1.7-1l-.4-2.4h-3.8l-.4 2.4a7.7 7.7 0 0 0-1.7 1l-2.3-1L2.7 9.5 4.6 11a7.8 7.8 0 0 0 0 2l-1.9 1.5 1.9 3.3 2.3-1a7.7 7.7 0 0 0 1.7 1l.4 2.4h3.8l.4-2.4a7.7 7.7 0 0 0 1.7-1l2.3 1 1.9-3.3z"/></svg>
+        <span>Settings</span>
+      </button>
+    </nav>
 
   </main>
 

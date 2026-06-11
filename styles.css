@@ -321,42 +321,85 @@ body {
 }
 .segmented--sm { max-width: 18rem; margin-inline: auto; }
 .segmented--col { grid-template-columns: 1fr; } /* stacked track list */
-/* Global settings gear (fixed, every screen) */
-.gearbtn {
-  position: fixed;
-  top: calc(env(safe-area-inset-top) + var(--s2));
-  right: calc(env(safe-area-inset-right) + var(--s2));
-  z-index: 45;
-  width: 2.9rem; height: 2.9rem; padding: 0;
-  display: grid; place-items: center;
-  border-radius: 50%; border: 1px solid var(--accent);
-  background: var(--surface-2); color: var(--accent);
-  cursor: pointer;
-  box-shadow: 0 2px 12px var(--shadow), 0 0 16px -3px var(--accent);
+/* ===================== BOTTOM TAB BAR ===================== */
+.tabbar {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 35;
+  display: flex; align-items: stretch;
+  background: var(--surface);
+  border-top: 1px solid var(--line);
+  padding: 6px max(env(safe-area-inset-right), 8px) calc(env(safe-area-inset-bottom) + 6px) max(env(safe-area-inset-left), 8px);
+  box-shadow: 0 -4px 18px var(--shadow);
 }
-.gearbtn:hover, .gearbtn:focus-visible { color: var(--primary-ink); background: var(--accent); }
-.gearbtn svg { width: 1.55rem; height: 1.55rem; }
-.overlay__card--settings { max-width: 24rem; text-align: left; max-height: 85vh; overflow-y: auto; }
-.settings-list { display: flex; flex-direction: column; margin: var(--s2) 0 var(--s3); }
-.settings-list .toggle:first-child, .settings-list .opt-block:first-child { border-top: 0; }
+.tabbar__btn {
+  flex: 1; display: flex; flex-direction: column; align-items: center; gap: 2px;
+  min-height: var(--tap-ios); padding: 4px 0;
+  background: none; border: 0; color: var(--text-dim);
+  font: inherit; font-size: 0.72rem; letter-spacing: 0.02em; cursor: pointer;
+  border-radius: 0.6rem;
+}
+.tabbar__btn svg { width: 1.5rem; height: 1.5rem; }
+.tabbar__btn.is-active { color: var(--accent); }
+/* keep content clear of the bar when it's visible */
+body.tabbed .app { padding-bottom: calc(env(safe-area-inset-bottom) + 5.2rem); }
 
-/* Mood picker — 6 swatch chips (2 columns), each tinted by its --dot color */
-.mood-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: var(--s1); }
-.mood-chip {
-  display: flex; flex-direction: column; align-items: center; gap: 2px;
-  padding: 10px 6px; min-height: var(--tap);
-  border-radius: 0.75rem; border: 1px solid var(--line);
-  background: var(--surface-2); color: var(--text);
-  font: inherit; font-size: 0.95rem; cursor: pointer;
-  transition: border-color .2s ease, box-shadow .2s ease;
+/* ===================== SETTINGS (tab screen) ===================== */
+.screen--settings { gap: var(--s2); padding-block: var(--s3); }
+.settings-list { display: flex; flex-direction: column; width: 100%; max-width: 26rem; margin: 0 auto; }
+.settings-list .toggle:first-child, .settings-list .opt-block:first-child, .settings-list .toggle--nav:first-child { border-top: 0; }
+/* row that navigates (e.g. Mood ›) */
+.toggle--nav { width: 100%; background: none; border: 0; border-top: 1px solid var(--line); font: inherit; color: var(--text); cursor: pointer; text-align: left; padding: 0; }
+.toggle--nav .toggle__value { color: var(--accent); font-size: 1.02rem; display: inline-flex; align-items: center; gap: 6px; }
+
+/* ===================== MOOD PICKER (full-screen swipe) ===================== */
+.screen--mood { position: fixed; inset: 0; z-index: 40; display: flex; flex-direction: column; }
+.mood-head {
+  position: absolute; top: 0; left: 0; right: 0; z-index: 2;
+  display: flex; align-items: center; justify-content: center;
+  padding: calc(env(safe-area-inset-top) + var(--s2)) var(--s2) var(--s1);
 }
-.mood-chip__dot { width: 1.2rem; height: 1.2rem; border-radius: 50%; background: var(--dot); box-shadow: 0 0 9px var(--dot); }
-.mood-chip__name { font-weight: 600; }
-.mood-chip__tag { font-size: 0.74rem; color: var(--text-dim); }
-.mood-chip[aria-checked="true"] {
-  border-color: var(--dot);
-  box-shadow: inset 0 0 0 1px var(--dot), 0 0 10px -2px var(--dot);
+.mood-head__title { margin: 0; font-size: 1.25rem; font-weight: 600; color: #fff; text-shadow: 0 1px 8px rgba(0,0,0,0.4); }
+.mood-back {
+  position: absolute; left: calc(env(safe-area-inset-left) + var(--s2));
+  top: calc(env(safe-area-inset-top) + var(--s1) + 2px);
+  width: 2.6rem; height: 2.6rem; border-radius: 50%; border: 0;
+  background: rgba(255,255,255,0.18); color: #fff;
+  font-size: 1.7rem; line-height: 1; cursor: pointer;
 }
+.mood-carousel {
+  flex: 1; display: flex; overflow-x: auto; overflow-y: hidden;
+  scroll-snap-type: x mandatory; -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+.mood-carousel::-webkit-scrollbar { display: none; }
+.mood-slide {
+  flex: 0 0 100%; width: 100%; scroll-snap-align: center; scroll-snap-stop: always;
+  display: flex; flex-direction: column; align-items: center; justify-content: flex-end;
+  padding: 0 var(--s3) calc(env(safe-area-inset-bottom) + 4.5rem);
+  position: relative;
+}
+.mood-slide__orb {
+  position: absolute; top: 24%; left: 50%; transform: translate(-50%, -50%);
+  width: clamp(7rem, 40vw, 11rem); height: clamp(7rem, 40vw, 11rem); border-radius: 50%;
+  background: radial-gradient(circle at 50% 38%, var(--dot), transparent 75%);
+  box-shadow: 0 0 70px -8px var(--dot);
+  opacity: 0.9;
+}
+.mood-slide__card {
+  width: 100%; max-width: 22rem; text-align: center;
+  background: rgba(255,255,255,0.10); border: 1px solid rgba(255,255,255,0.16);
+  border-radius: var(--radius); padding: var(--s3);
+  -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px);
+}
+.mood-slide__name { margin: 0; font-size: 1.7rem; color: #fff; }
+.mood-slide__tag { margin: 4px 0 var(--s2); color: rgba(255,255,255,0.85); }
+.mood-slide__select { min-width: 11rem; }
+.mood-slide__select.is-selected { background: #fff; color: #1c2b33; }
+.mood-dots {
+  position: absolute; left: 0; right: 0; bottom: calc(env(safe-area-inset-bottom) + 1.4rem);
+  display: flex; gap: 8px; justify-content: center; z-index: 2;
+}
+.mood-dots span { width: 8px; height: 8px; border-radius: 999px; background: rgba(255,255,255,0.4); transition: width .25s ease, background .25s ease; }
+.mood-dots span.is-on { width: 22px; background: #fff; }
 
 /* Compact inline 2-option segmented (e.g. in-session 2D | 3D) */
 .segmented--mini { display: inline-grid; grid-template-columns: auto auto; width: auto; padding: 3px; gap: 3px; }
@@ -454,21 +497,6 @@ body {
   font-size: 2.4rem; font-weight: 600; min-width: 2.5ch; text-align: center;
   font-variant-numeric: tabular-nums;
 }
-
-/* Options (toggles) */
-.options {
-  background: var(--surface); border: 1px solid var(--line);
-  border-radius: var(--radius); overflow: hidden;
-}
-.options__summary {
-  min-height: var(--tap); display: flex; align-items: center;
-  padding: 0 var(--s3); cursor: pointer; font-weight: 600; color: var(--text-dim);
-  list-style: none;
-}
-.options__summary::-webkit-details-marker { display: none; }
-.options__summary::after { content: "＋"; margin-left: auto; font-size: 1.2rem; }
-.options[open] .options__summary::after { content: "－"; }
-.options__body { padding: 0 var(--s3) var(--s2); display: flex; flex-direction: column; }
 
 .toggle {
   display: flex; align-items: center; justify-content: space-between;
@@ -786,7 +814,6 @@ body {
 .learn__static { text-align: left; color: var(--text); font-size: 0.95rem; line-height: 1.5; margin: 0 0 var(--s3); }
 .learn__static p { margin: 0 0 var(--s1); }
 .screen--learn .btn--primary { min-width: 12rem; }
-.btn--how { margin: var(--s1) auto 0; font-size: 0.9rem; min-height: auto; padding: 8px 14px; color: var(--accent); }
 
 /* Air streams — curved flowing lines over the nose (inhale) / mouth (exhale).
    The SVG overlays the figure; groups fade + "flow" only during their phase. */
@@ -829,7 +856,6 @@ body {
 /* ===================== START GREETING + DATA SECTION ===================== */
 .greeting { margin: var(--s2) 0 0; color: var(--text-dim); font-size: 1rem; line-height: 1.5; }
 .greeting strong { color: var(--text); }
-.options__body--stack { gap: var(--s1); padding-top: var(--s1); }
 .btn--row { width: 100%; margin-top: var(--s1); }
 
 /* ===================== DASHBOARD (end screen) ===================== */

@@ -336,12 +336,14 @@
     optTheme: $('opt-theme'),
     bgSelect: $('bg-select'),
     bgVolume: $('bg-volume'),
-    moodSelect: $('mood-select'),
-
-    // Global settings gear (every screen)
-    btnGear: $('btn-gear'),
-    settingsOverlay: $('settings-overlay'),
-    btnSettingsDone: $('btn-settings-done'),
+    moodRow: $('mood-row'),
+    moodValue: $('mood-value'),
+    screenMood: $('screen-mood'),
+    moodCarousel: $('mood-carousel'),
+    moodDots: $('mood-dots'),
+    btnMoodBack: $('btn-mood-back'),
+    screenSettings: $('screen-settings'),
+    tabbar: $('tabbar'),
 
     startForm: $('start-form'),
     btnStart: $('btn-start'),
@@ -388,7 +390,6 @@
     learnSteps: $('learn-steps'),
     learnStatic: $('learn-static'),
     btnLearnContinue: $('btn-learn-continue'),
-    btnHowItWorks: $('btn-how-it-works'),
 
     // Onboarding
     screenOnboarding: $('screen-onboarding'),
@@ -517,12 +518,10 @@
     setSwitch(el.optCalm, settings.calmCheck);
     setSwitch(el.optTheme, settings.theme === 'light');
 
-    // Mood palette (lives in the global gear)
-    el.moodSelect.querySelectorAll('.mood-chip').forEach((b) => {
-      b.setAttribute('aria-checked', b.getAttribute('data-mood') === settings.mood ? 'true' : 'false');
-    });
+    // Mood palette (Settings row + picker slide buttons)
+    updateMoodUI();
 
-    // Ambient music: selection + volume (lives in the global gear)
+    // Ambient music: selection + volume (lives in the Settings tab)
     el.bgSelect.querySelectorAll('.segmented__btn').forEach((b) => {
       b.setAttribute('aria-checked', b.getAttribute('data-track') === settings.bgTrack ? 'true' : 'false');
     });
@@ -591,13 +590,42 @@
     saveSettings(); applyTheme(); renderStart();
   });
 
-  // Mood picker: retheme the whole app (CSS variables + both orbs) instantly.
-  el.moodSelect.querySelectorAll('.mood-chip').forEach((chip) => {
-    chip.addEventListener('click', () => {
-      const mood = chip.getAttribute('data-mood');
-      if (!MOODS[mood] || mood === settings.mood) return;
+  /* ---------- Mood picker (full-screen swipe carousel) ---------- */
+  // Reflect the current mood in the Settings row + the picker's Select buttons.
+  function updateMoodUI() {
+    el.moodValue.textContent = moodOf(settings.mood).name;
+    el.moodCarousel.querySelectorAll('.mood-slide__select').forEach((b) => {
+      const sel = b.getAttribute('data-mood') === settings.mood;
+      b.textContent = sel ? '✓ Selected' : 'Select';
+      b.classList.toggle('is-selected', sel);
+    });
+  }
+
+  const MOOD_ORDER = ['sky', 'night', 'desert', 'forest', 'ocean', 'zen'];
+  function moodDotsTo(i) {
+    el.moodDots.querySelectorAll('span').forEach((d, idx) => d.classList.toggle('is-on', idx === i));
+  }
+  function openMoodPicker() {
+    showScreen('mood');
+    // Jump the carousel to the current mood (after layout so widths exist).
+    requestAnimationFrame(() => {
+      const i = Math.max(0, MOOD_ORDER.indexOf(settings.mood));
+      el.moodCarousel.scrollLeft = i * el.moodCarousel.clientWidth;
+      moodDotsTo(i);
+    });
+  }
+  el.moodRow.addEventListener('click', openMoodPicker);
+  el.btnMoodBack.addEventListener('click', () => showScreen('settings'));
+  el.moodCarousel.addEventListener('scroll', () => {
+    const w = el.moodCarousel.clientWidth || 1;
+    moodDotsTo(Math.max(0, Math.min(5, Math.round(el.moodCarousel.scrollLeft / w))));
+  }, { passive: true });
+  el.moodCarousel.querySelectorAll('.mood-slide__select').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const mood = btn.getAttribute('data-mood');
+      if (!MOODS[mood]) return;
       settings.mood = mood;
-      saveSettings(); applyTheme(); renderStart();
+      saveSettings(); applyTheme(); updateMoodUI();
     });
   });
 
@@ -1333,12 +1361,16 @@
       session: el.screenSession,
       end: el.screenEnd,
       summary: el.screenSummary,
+      settings: el.screenSettings,
+      mood: el.screenMood,
     };
     Object.entries(map).forEach(([k, node]) => { node.hidden = (k !== name); });
-    // Reflect any in-session / profile changes back onto the start screen controls.
-    if (name === 'start') renderStart();
+    // Reflect any in-session / profile changes back onto the start screen controls
+    // (also when opening Settings, which shares those control elements).
+    if (name === 'start' || name === 'settings') renderStart();
     // The walkthrough animation only runs while its screen is visible.
     if (name === 'learn') startLearnDemo(); else stopLearnDemo();
+    updateTabbar(name);
     // Move focus to a sensible target (keyboard / SR users)
     const focusTarget = {
       welcome: el.btnWelcomeStart,
@@ -1348,11 +1380,30 @@
       session: el.btnStop,   // always-reachable control
       end: el.btnRestart,
       summary: el.btnSummaryDone,
+      settings: el.moodRow,
+      mood: el.btnMoodBack,
     }[name];
     if (focusTarget) {
       // delay so the element is visible/focusable
       requestAnimationFrame(() => focusTarget.focus());
     }
+  }
+
+  /* ---------- Bottom tab bar ---------- */
+  // Which tab a screen belongs to; screens not listed are immersive (no bar):
+  // welcome/onboarding (first run), session (focus mode), mood (full-screen picker).
+  const TAB_FOR = { start: 'breathe', end: 'breathe', learn: 'learn', summary: 'progress', settings: 'settings' };
+  function updateTabbar(name) {
+    let tab = TAB_FOR[name] || null;
+    // The walkthrough inside the first-run flow is immersive too.
+    if (name === 'learn' && learn.returnTo === 'onboarding') tab = null;
+    el.tabbar.hidden = !tab;
+    document.body.classList.toggle('tabbed', !!tab);
+    el.tabbar.querySelectorAll('.tabbar__btn').forEach((b) => {
+      const active = b.getAttribute('data-tab') === tab;
+      b.classList.toggle('is-active', active);
+      if (active) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current');
+    });
   }
 
   /* ---------- Formatting ---------- */
@@ -1527,10 +1578,11 @@
     if (learn.raf) { cancelAnimationFrame(learn.raf); learn.raf = 0; }
   }
 
-  // Open the walkthrough, remembering where to go when the user is done.
+  // Open the walkthrough. During first-run it shows a Continue button (flow:
+  // welcome → learn → onboarding); as the Learn tab, navigation is the tab bar.
   function showLearn(returnTo) {
     learn.returnTo = returnTo || 'start';
-    el.btnLearnContinue.textContent = (learn.returnTo === 'onboarding') ? 'Continue' : 'Got it';
+    el.btnLearnContinue.hidden = (learn.returnTo !== 'onboarding');
     showScreen('learn');
   }
 
@@ -2093,8 +2145,6 @@
     if (learn.returnTo === 'onboarding') { renderOnboarding(); showScreen('onboarding'); }
     else showScreen(learn.returnTo || 'start');
   });
-  // Home-screen entry point (for people who skipped or are returning).
-  el.btnHowItWorks.addEventListener('click', () => showLearn('start'));
   el.onboardForm.addEventListener('submit', (e) => { e.preventDefault(); finishOnboarding(false); });
   el.btnOnboardSkip.addEventListener('click', () => finishOnboarding(true));
   // Age: single-select (one range).
@@ -2147,32 +2197,15 @@
     if (e.key === 'Escape') { e.preventDefault(); resolveCalm(null); }
   });
 
-  // ----- Global settings gear (available on every screen) -----
-  function openGear() {
-    renderStart();                 // reflect current settings into the shared controls
-    el.settingsOverlay.hidden = false;
-    el.btnGear.setAttribute('aria-expanded', 'true');
-    // Open at the TOP (Moods first). Focusing the bottom Done button used to
-    // auto-scroll the panel down — focus the heading instead, without scrolling.
-    const card = el.settingsOverlay.querySelector('.overlay__card');
-    if (card) card.scrollTop = 0;
-    const title = $('settings-title');
-    if (title) { title.setAttribute('tabindex', '-1'); title.focus({ preventScroll: true }); }
-  }
-  function closeGear() {
-    el.settingsOverlay.hidden = true;
-    el.btnGear.setAttribute('aria-expanded', 'false');
-    el.btnGear.focus();
-  }
-  el.btnGear.addEventListener('click', () => {
-    initAudio();                   // first gesture may be opening settings — unlock + start music
-    startMusic();
-    el.settingsOverlay.hidden ? openGear() : closeGear();
-  });
-  el.btnSettingsDone.addEventListener('click', closeGear);
-  el.settingsOverlay.addEventListener('click', (e) => { if (e.target === el.settingsOverlay) closeGear(); });
-  el.settingsOverlay.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape') { e.preventDefault(); closeGear(); }
+  // ----- Bottom tab bar navigation -----
+  el.tabbar.querySelectorAll('.tabbar__btn').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const tab = btn.getAttribute('data-tab');
+      if (tab === 'breathe') showScreen('start');
+      else if (tab === 'learn') showLearn('start');
+      else if (tab === 'progress') { renderSummaryCard(); showScreen('summary'); }
+      else if (tab === 'settings') showScreen('settings');
+    });
   });
 
   // Always-on ambient music: start on the user's first gesture anywhere
@@ -2197,7 +2230,6 @@
   // Keyboard: Space toggles pause during a session; Escape stops.
   document.addEventListener('keydown', (e) => {
     if (!session.active) return;
-    if (!el.settingsOverlay.hidden) return; // let the gear handle its own keys
     const tag = (e.target && e.target.tagName) || '';
     if (e.key === 'Escape') { e.preventDefault(); stopSession(); }
     else if ((e.key === ' ' || e.code === 'Space') && tag !== 'BUTTON') {
